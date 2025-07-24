@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ví MMO</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      background: linear-gradient(to bottom right, #1e2b63, #111c4a);
+      color: white;
+      position: relative;
+    }
+
+    .container {
+      max-width: 450px;
+      margin: auto;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .notify-icon {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      font-size: 22px;
+      background: #3c4fa0;
+      padding: 10px;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(255,255,255,0.2);
+      z-index: 2;
+    }
+
+    .profile {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      justify-content: space-between;
+    }
+
+    .avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .info {
+      flex-grow: 1;
+      margin-left: 12px;
+    }
+
+    .vip {
+      background: gold;
+      color: black;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 12px;
+      margin-left: 6px;
+    }
+
+    .amount-box {
+      background: #2a3a70;
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 15px;
+    }
+
+    .amount-box h2 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .amount-row {
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+    }
+
+    .half-box {
+      flex: 1;
+      background: rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .balance-amount {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .action-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+      text-align: center;
+    }
+
+    .action-buttons button {
+      background: #3c4fa0;
+      color: #fff;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: 0.3s ease;
+    }
+
+    .action-buttons button:hover {
+      background: #4e60b8;
+    }
+
+    .menu {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .menu button {
+      background: #314289;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 13px;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: 0.3s ease;
+    }
+
+    .menu button:hover {
+      background: #3b51a1;
+    }
+
+    .logout-btn {
+      text-align: center;
+      margin-top: 25px;
+    }
+
+    .logout-btn button {
+      background: #c0392b;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 14px;
+      cursor: pointer;
+      font-family: 'Poppins', sans-serif;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+
+    .logout-btn button:hover {
+      background: #e74c3c;
+    }
+  </style>
+</head>
+<body>
+  <div class="notify-icon">🔔</div>
+
+  <div class="container">
+    <div class="profile">
+      <div class="avatar">
+        <img src="./anime/logo.png" alt="avatar" />
+      </div>
+      <div class="info">
+        <strong><span id="username">...</span></strong>
+        <span class="vip" id="vipLevel">VIP1</span><br>
+        UID: <span id="userId">--</span><br>
+        Đăng nhập trước: <span id="registeredAt">--</span>
+      </div>
+    </div>
+
+    <div class="amount-box">
+      <h2>Tổng số tiền</h2>
+      <div class="amount-row">
+        <div class="half-box">
+          💰 Số dư<br>
+          <span class="balance-amount" id="balance">0</span>đ
+        </div>
+        <div class="half-box">
+          📈 Đầu tư<br>
+          <span class="balance-amount" id="investment">0</span>đ
+        </div>
+      </div>
+    </div>
+
+    <div class="action-buttons">
+      <button onclick="location.href='wallet.html'">💰 Ví</button>
+      <button onclick="location.href='naptien.html'">📝 Nạp</button>
+      <button onclick="location.href='ruttien.html'">💳 Rút</button>
+      <button onclick="location.href='vip.html'">💎 VIP</button>
+    </div>
+
+    <div class="menu">
+      <button onclick="location.href='datcuoc.html'">📊<br>Đầu tư</button>
+      <button onclick="location.href='giaodich.html'">🔁<br>Lịch sử giao dịch</button>
+      <button onclick="location.href='naptien.html'">📥<br>Lịch sử nạp</button>
+      <button onclick="location.href='ruttien.html'">📤<br>Lịch sử rút</button>
+    </div>
+
+    <div class="logout-btn">
+      <button onclick="location.href='index.html'">🚪 Đăng xuất</button>
+    </div>
+  </div>
+
+  <script>
+    function renderProfile(data) {
+      document.getElementById('username').textContent = data.username;
+      document.getElementById('userId').textContent = data.userId;
+      document.getElementById('balance').textContent = Number(data.balance).toLocaleString();
+      document.getElementById('investment').textContent = Number(data.investment || 0).toLocaleString();
+      document.getElementById('registeredAt').textContent = new Date(data.registeredAt).toLocaleString();
+      document.getElementById('vipLevel').textContent = data.vipLevel || 'VIP1';
+    }
+
+    function fetchProfile() {
+      fetch('/profile')
+        .then(res => res.json())
+        .then(renderProfile);
+    }
+
+    // Gọi lúc đầu
+    fetchProfile();
+
+    // ✅ Gọi lại mỗi 10 giây để cập nhật realtime
+    setInterval(fetchProfile, 10000);
+  </script>
+</body>
+</html>

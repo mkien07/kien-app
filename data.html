@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quản lý tài khoản</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Poppins', sans-serif; margin: 0; background: #f5f6fa; }
+    header {
+      background: #2e86de; color: white;
+      display: flex; justify-content: space-between;
+      align-items: center; padding: 12px 20px;
+    }
+    header h3 { margin: 0; font-weight: normal; }
+    header button {
+      background: #c0392b; border: none;
+      padding: 8px 16px; border-radius: 6px;
+      font-size: 13px; color: white; cursor: pointer;
+    }
+    h2 { text-align: center; margin: 20px 0 10px; color: #333; }
+    #search {
+      margin-left: 20px; padding: 8px; width: 250px;
+      border-radius: 6px; border: 1px solid #ccc;
+      font-family: inherit;
+    }
+    .table-container {
+      width: 95%; margin: 20px auto; overflow-x: auto;
+    }
+    table {
+      width: 100%; border-collapse: collapse;
+      background: white; box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    th, td {
+      padding: 10px; border-bottom: 1px solid #ddd;
+      text-align: center; font-size: 13px;
+    }
+    th { background: #2e86de; color: white; }
+    tr:hover { background: #f1f1f1; }
+    button {
+      padding: 6px 10px; margin: 2px;
+      border: none; border-radius: 6px;
+      font-size: 12px; cursor: pointer;
+    }
+    .edit-btn { background: #f39c12; color: white; }
+
+    /* Modal */
+    #editModal {
+      display: none; position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.4); padding: 20px;
+      box-sizing: border-box; overflow-y: auto;
+      align-items: start; justify-content: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: white; padding: 20px;
+      border-radius: 10px; font-size: 14px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 12px; max-width: 600px; width: 100%;
+      max-height: 90vh; overflow-y: auto;
+    }
+    .modal-content h3 {
+      grid-column: span 2; text-align: center;
+      margin: 0 0 10px;
+    }
+    .modal-content label {
+      font-size: 13px; margin-bottom: 4px;
+      display: block; color: #333;
+    }
+    .modal-content input,
+    .modal-content select {
+      width: 100%; margin-bottom: 6px; padding: 8px;
+      border: 1px solid #ccc; border-radius: 6px;
+      font-family: inherit;
+    }
+    .modal-buttons {
+      grid-column: span 2; text-align: center;
+    }
+    .modal-buttons button {
+      width: 100px; margin: 5px;
+    }
+    .save-btn { background: #27ae60; color: white; }
+    .cancel-btn { background: #e74c3c; color: white; }
+
+    @media(max-width: 640px) {
+      .modal-content { grid-template-columns: 1fr; }
+      #search { width: calc(100% - 40px); margin: 10px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h3>👋 Xin chào, Admin</h3>
+    <button onclick="location.href='index.html'">Đăng xuất</button>
+  </header>
+
+  <h2>👨‍💼 Quản lý tài khoản</h2>
+  <input type="text" id="search" placeholder="🔍 Tìm UID hoặc Username">
+
+  <div class="table-container">
+    <table id="userTable">
+      <thead>
+        <tr>
+          <th>UID</th><th>Username</th><th>Email</th>
+          <th>Số dư</th><th>Đầu tư</th><th>VIP</th>
+          <th>Quyền</th><th>Trạng thái</th><th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="editModal">
+    <div class="modal-content">
+      <h3>📝 Sửa tài khoản</h3>
+      <input type="hidden" id="modalId">
+      <label>Username:</label><input id="modalUsername" disabled>
+      <label>Email:</label><input id="modalEmail">
+      <label>Mật khẩu:</label><input id="modalPassword">
+      <label>Số dư:</label><input id="modalBalance" type="number">
+      <label>Đầu tư:</label><input id="modalInvestment" type="number">
+      <label>VIP:</label><input id="modalVip">
+      <label>Quyền:</label>
+      <select id="modalRole">
+        <option value="user">Người dùng</option>
+        <option value="qtv">Quản trị viên </option>
+      </select>
+      <label>Trạng thái:</label>
+      <select id="modalLocked">
+        <option value="false">✅ Mở</option>
+        <option value="true">🔒 Khóa</option>
+      </select>
+      <label>IP đăng ký:</label><input id="modalIpRegister" disabled>
+      <label>IP đăng nhập:</label><input id="modalIpLogin" disabled>
+      <label>Thiết bị:</label><input id="modalUserAgent" disabled>
+      <label>Thời gian tạo:</label><input id="modalRegisteredAt" disabled>
+      <div class="modal-buttons">
+        <button class="save-btn" onclick="saveChanges()">Lưu</button>
+        <button class="cancel-btn" onclick="closeModal()">Hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let users = [];
+    let currentRole = 'user';
+
+    // Lấy thông tin hiện tại để biết role
+    fetch('/profile')
+      .then(res => res.json())
+      .then(data => {
+        currentRole = data.role || 'user';
+        loadUsers();
+      });
+
+    function loadUsers() {
+      fetch('/admin/users')
+        .then(res => res.json())
+        .then(data => {
+          users = data;
+          renderTable(data);
+        });
+    }
+
+    function renderTable(data) {
+      const tbody = document.querySelector('#userTable tbody');
+      tbody.innerHTML = '';
+      data.forEach(user => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${user.userId}</td>
+          <td>${user.username}</td>
+          <td>${user.email}</td>
+          <td>${user.balance.toLocaleString()}đ</td>
+          <td>${user.investment.toLocaleString()}đ</td>
+          <td>${user.vipLevel || 'VIP1'}</td>
+          <td>${user.role || 'user'}</td>
+          <td>${user.locked ? '🔒' : '✅'}</td>
+          <td><button class="edit-btn" onclick='openEdit(${JSON.stringify(user).replace(/"/g,"&quot;")})'>Sửa</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openEdit(user) {
+      // Điền dữ liệu vào form
+      document.getElementById('modalId').value = user._id;
+      document.getElementById('modalUsername').value = user.username;
+      document.getElementById('modalEmail').value = user.email;
+      document.getElementById('modalPassword').value = user.password;
+      document.getElementById('modalBalance').value = user.balance;
+      document.getElementById('modalInvestment').value = user.investment;
+      document.getElementById('modalVip').value = user.vipLevel || 'VIP1';
+      document.getElementById('modalRole').value = user.role || 'user';
+      document.getElementById('modalLocked').value = user.locked ? 'true' : 'false';
+      document.getElementById('modalIpRegister').value = user.ipRegister || '';
+      document.getElementById('modalIpLogin').value = user.ipLogin || '';
+      document.getElementById('modalUserAgent').value = user.userAgent || '';
+      document.getElementById('modalRegisteredAt').value = new Date(user.registeredAt).toLocaleString();
+
+      // Nếu QTV → disable & làm mờ các ô không được phép chỉnh
+      if (currentRole === 'qtv') {
+        ['modalEmail','modalPassword','modalBalance','modalInvestment','modalVip','modalRole']
+          .forEach(id => {
+            const el = document.getElementById(id);
+            el.disabled = true;
+            el.style.background = '#eee';
+            el.style.opacity = '0.6';
+            el.title = 'Chỉ có admin mới được chỉnh mục này';
+          });
+      }
+
+      document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('editModal').style.display = 'none';
+    }
+
+    function saveChanges() {
+      const id = document.getElementById('modalId').value;
+      const payload = {
+        email: document.getElementById('modalEmail').value,
+        password: document.getElementById('modalPassword').value,
+        balance: Number(document.getElementById('modalBalance').value),
+        investment: Number(document.getElementById('modalInvestment').value),
+        vipLevel: document.getElementById('modalVip').value,
+        role: document.getElementById('modalRole').value,
+        locked: document.getElementById('modalLocked').value === 'true'
+      };
+
+      fetch(`/admin/user/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(() => {
+        closeModal();
+        loadUsers();
+      });
+    }
+
+    document.getElementById('search').addEventListener('input', e => {
+      const kw = e.target.value.toLowerCase();
+      const filtered = users.filter(u =>
+        u.userId.includes(kw) ||
+        u.username.toLowerCase().includes(kw)
+      );
+      renderTable(filtered);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Đăng ký tài khoản</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+</head>
+<body>
+  <!-- Ngôn ngữ -->
+  <div class="language-selector">
+    <select id="language">
+      <option value="vi">🇻🇳 Tiếng Việt</option>
+      <option value="en">🇬🇧 English</option>
+      <option value="jp">🇯🇵 日本語</option>
+    </select>
+  </div>
+
+  <!-- Background -->
+  <div class="background"></div>
+
+  <!-- Form đăng ký -->
+  <div class="login-box">
+    <h2>Đăng ký tài khoản ✨</h2>
+    <form id="registerForm" action="/register" method="POST">
+      <div class="input-group">
+        <input type="text" id="newUsername" name="username" placeholder="Tên đăng nhập" required />
+      </div>
+
+      <div class="input-group">
+        <input type="email" id="email" name="email" placeholder="Email" required />
+      </div>
+
+      <div class="input-group">
+        <input type="text" id="phone" name="phone" placeholder="Số điện thoại" required pattern="0[0-9]{9}" />
+      </div>
+
+      <div class="input-group">
+        <input type="password" id="newPassword" name="password" placeholder="Mật khẩu" required />
+        <span class="toggle-password" onclick="togglePassword('newPassword')">👁️</span>
+      </div>
+
+      <div class="input-group">
+        <input type="password" id="confirmPassword" placeholder="Nhập lại mật khẩu" required />
+        <span class="toggle-password" onclick="togglePassword('confirmPassword')">👁️</span>
+      </div>
+
+      <!-- Google reCAPTCHA 
+      <div class="input-group">
+        <div class="g-recaptcha" data-sitekey="6LeCuowrAAAAAHyZGXVOiZETF5wnyf_8G3YjCPPa"></div>
+      </div> -->
+
+      <button type="submit">Đăng ký</button>
+
+      <div class="extra-links">
+        <a href="index.html">Đã có tài khoản?</a>
+      </div>
+    </form>
+    <p id="message"></p>
+  </div>
+
+  <script>
+    function togglePassword(id) {
+      const input = document.getElementById(id);
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    document.getElementById('registerForm').addEventListener('submit', function(e) {
+      const email = document.getElementById('email').value;
+      const phone = document.getElementById('phone').value;
+      const pwd = document.getElementById('newPassword').value;
+      const confirm = document.getElementById('confirmPassword').value;
+      const captchaResponse = grecaptcha.getResponse();
+
+      if (!email.endsWith('@gmail.com')) {
+        alert('❗ Chỉ hỗ trợ địa chỉ Gmail (@gmail.com)');
+        e.preventDefault();
+        return;
+      }
+
+      if (!/^0\d{9}$/.test(phone)) {
+        alert('❗ Số điện thoại phải gồm 10 chữ số và bắt đầu bằng số 0');
+        e.preventDefault();
+        return;
+      }
+
+      if (pwd !== confirm) {
+        alert('❗ Mật khẩu nhập lại không khớp!');
+        e.preventDefault();
+        return;
+      }
+
+      if (!captchaResponse) {
+        alert('🚫 Vui lòng xác minh bạn không phải robot!');
+        e.preventDefault();
+      }
+    });
+  </script>
+</body>
+</html>
