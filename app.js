@@ -25,12 +25,12 @@ const userSchema = new mongoose.Schema({
   userAgent: String,
   locked: Boolean,
   vipLevel: String,
-  role: { type: String, default: 'user' } // 👈 phân quyền: user, qtv, admin
+  role: { type: String, default: 'user' } // 👈 phân quyền: user, qtv,     admin
 });
 
 const User = mongoose.model('User', userSchema);
 
-// 🔧 Tạo mã UID ngẫu nhiên
+// 🔧 Tạo mã UID ngẫu nhiên 
 function generateUserId() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
