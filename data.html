@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quản lý tài khoản</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
   <style>
@@ -43,8 +43,6 @@
       font-size: 12px; cursor: pointer;
     }
     .edit-btn { background: #f39c12; color: white; }
-
-    /* Modal */
     #editModal {
       display: none; position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
@@ -83,7 +81,6 @@
     }
     .save-btn { background: #27ae60; color: white; }
     .cancel-btn { background: #e74c3c; color: white; }
-
     @media(max-width: 640px) {
       .modal-content { grid-template-columns: 1fr; }
       #search { width: calc(100% - 40px); margin: 10px 20px; }
@@ -98,15 +95,22 @@
   </header>
 
   <h2>👨‍💼 Quản lý tài khoản</h2>
-  <input type="text" id="search" placeholder="🔍 Tìm UID hoặc Username">
+  <input type="text" id="search" placeholder="🔍 Tìm UID, Username, Email, IP, Số dư,...">
 
   <div class="table-container">
     <table id="userTable">
       <thead>
         <tr>
-          <th>UID</th><th>Username</th><th>Email</th>
-          <th>Số dư</th><th>Đầu tư</th><th>VIP</th>
-          <th>Quyền</th><th>Trạng thái</th><th>Hành động</th>
+          <th>UID</th>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Số dư</th>
+          <th>Đầu tư</th>
+          <th>VIP</th>
+          <th>Quyền</th>
+          <th>Trạng thái</th>
+          <th>Cảnh báo</th>
+          <th>Hành động</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -126,7 +130,7 @@
       <label>Quyền:</label>
       <select id="modalRole">
         <option value="user">Người dùng</option>
-        <option value="qtv">Quản trị viên </option>
+        <option value="qtv">Quản trị viên</option>
       </select>
       <label>Trạng thái:</label>
       <select id="modalLocked">
@@ -148,7 +152,7 @@
     let users = [];
     let currentRole = 'user';
 
-    // Lấy thông tin hiện tại để biết role
+    // Lấy role hiện tại và load data
     fetch('/profile')
       .then(res => res.json())
       .then(data => {
@@ -168,7 +172,19 @@
     function renderTable(data) {
       const tbody = document.querySelector('#userTable tbody');
       tbody.innerHTML = '';
+
+      // Đếm trùng IP, email, phone
+      const ipMap = {}, emailMap = {}, phoneMap = {};
+      data.forEach(u => {
+        ipMap[u.ipRegister] = (ipMap[u.ipRegister] || 0) + 1;
+        emailMap[u.email]     = (emailMap[u.email]     || 0) + 1;
+        phoneMap[u.phone]     = (phoneMap[u.phone]     || 0) + 1;
+      });
+
       data.forEach(user => {
+        const warn = ipMap[user.ipRegister] > 1
+                  || emailMap[user.email] > 1
+                  || phoneMap[user.phone] > 1;
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${user.userId}</td>
@@ -177,39 +193,43 @@
           <td>${user.balance.toLocaleString()}đ</td>
           <td>${user.investment.toLocaleString()}đ</td>
           <td>${user.vipLevel || 'VIP1'}</td>
-          <td>${user.role || 'user'}</td>
-          <td>${user.locked ? '🔒' : '✅'}</td>
-          <td><button class="edit-btn" onclick='openEdit(${JSON.stringify(user).replace(/"/g,"&quot;")})'>Sửa</button></td>
+          <td>${user.role    || 'user'}</td>
+          <td>${user.locked  ? '🔒' : '✅'}</td>
+          <td>${warn         ? '⚠️' : ''}</td>
+          <td>
+            <button class="edit-btn"
+              onclick='openEdit(${JSON.stringify(user).replace(/"/g,"&quot;")})'>
+              Sửa
+            </button>
+          </td>
         `;
         tbody.appendChild(tr);
       });
     }
 
     function openEdit(user) {
-      // Điền dữ liệu vào form
-      document.getElementById('modalId').value = user._id;
-      document.getElementById('modalUsername').value = user.username;
-      document.getElementById('modalEmail').value = user.email;
-      document.getElementById('modalPassword').value = user.password;
-      document.getElementById('modalBalance').value = user.balance;
-      document.getElementById('modalInvestment').value = user.investment;
-      document.getElementById('modalVip').value = user.vipLevel || 'VIP1';
-      document.getElementById('modalRole').value = user.role || 'user';
-      document.getElementById('modalLocked').value = user.locked ? 'true' : 'false';
-      document.getElementById('modalIpRegister').value = user.ipRegister || '';
-      document.getElementById('modalIpLogin').value = user.ipLogin || '';
-      document.getElementById('modalUserAgent').value = user.userAgent || '';
-      document.getElementById('modalRegisteredAt').value = new Date(user.registeredAt).toLocaleString();
+      document.getElementById('modalId').value            = user._id;
+      document.getElementById('modalUsername').value      = user.username;
+      document.getElementById('modalEmail').value         = user.email;
+      document.getElementById('modalPassword').value      = user.password;
+      document.getElementById('modalBalance').value       = user.balance;
+      document.getElementById('modalInvestment').value    = user.investment;
+      document.getElementById('modalVip').value           = user.vipLevel || 'VIP1';
+      document.getElementById('modalRole').value          = user.role     || 'user';
+      document.getElementById('modalLocked').value        = user.locked   ? 'true' : 'false';
+      document.getElementById('modalIpRegister').value    = user.ipRegister || '';
+      document.getElementById('modalIpLogin').value       = user.ipLogin    || '';
+      document.getElementById('modalUserAgent').value     = user.userAgent  || '';
+      document.getElementById('modalRegisteredAt').value  = new Date(user.registeredAt).toLocaleString();
 
-      // Nếu QTV → disable & làm mờ các ô không được phép chỉnh
       if (currentRole === 'qtv') {
         ['modalEmail','modalPassword','modalBalance','modalInvestment','modalVip','modalRole']
           .forEach(id => {
             const el = document.getElementById(id);
-            el.disabled = true;
+            el.disabled  = true;
             el.style.background = '#eee';
-            el.style.opacity = '0.6';
-            el.title = 'Chỉ có admin mới được chỉnh mục này';
+            el.style.opacity    = '0.6';
+            el.title            = 'Chỉ có admin mới được chỉnh mục này';
           });
       }
 
@@ -246,10 +266,15 @@
       const kw = e.target.value.toLowerCase();
       const filtered = users.filter(u =>
         u.userId.includes(kw) ||
-        u.username.toLowerCase().includes(kw)
+        u.username.toLowerCase().includes(kw) ||
+        u.email.toLowerCase().includes(kw) ||
+        (u.phone      || '').includes(kw) ||
+        (u.ipRegister|| '').includes(kw) ||
+        ('' + u.balance).includes(kw)
       );
       renderTable(filtered);
     });
   </script>
+
 </body>
 </html>
