@@ -9,7 +9,7 @@ const app = express();
 // 🔗 Kết nối MongoDB
 mongoose.connect(process.env.MONGO_URI);
 
-// ⚙️ Cấu hình proxy để lấy IP thật
+// ⚙️ Lấy IP chính xác từ proxy
 app.set('trust proxy', true);
 
 // 🔐 Cài đặt session
@@ -18,14 +18,14 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    maxAge: 7 * 24 * 60 * 60 * 1000 // Giữ phiên 7 ngày
+    maxAge: 7 * 24 * 60 * 60 * 1000 // giữ 7 ngày
   }
 }));
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// 📦 Schema người dùng
+// 🧩 Schema người dùng
 const userSchema = new mongoose.Schema({
   userId: String,
   username: String,
@@ -46,7 +46,7 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// ✅ API kiểm tra session + quyền
+// ✅ API kiểm tra phiên đăng nhập & role
 app.get('/check-session', (req, res) => {
   if (req.session?.user) {
     res.json({ loggedIn: true, role: req.session.user.role });
@@ -55,45 +55,34 @@ app.get('/check-session', (req, res) => {
   }
 });
 
-// ✅ Route bảo vệ
+// ✅ Bảo vệ truy cập các trang
 app.get('/menu.html', (req, res, next) => {
   req.session?.user ? next() : res.redirect('/index.html');
 });
+
 app.get('/reg.html', (req, res, next) => {
   req.session?.user ? res.redirect('/menu.html') : next();
 });
 
-// ✅ Đăng ký
-app.post('/register', async (req, res) => {
-  const { username, email, phone, password } = req.body;
-  const existingUser = await User.findOne({ $or: [{ username }, { email }] });
-  if (existingUser) return res.status(409).send('⚠️ Tên đăng nhập hoặc email đã tồn tại!');
+// ✅ Lấy thông tin người dùng
+app.get('/profile', async (req, res) => {
+  const user = req.session?.user;
+  if (!user) return res.status(401).send('❌ Chưa đăng nhập');
 
-  const now = new Date();
-  const ip = req.ip;
-  const ua = req.headers['user-agent'];
+  if (user.username === 'admin') return res.json(user); // admin không cần DB
 
-  const newUser = new User({
-    userId: Math.floor(100000 + Math.random() * 900000).toString(),
-    username,
-    email,
-    phone,
-    password,
-    balance: 0,
-    investment: 0,
-    registeredAt: now,
-    lastLogin: now,
-    ipRegister: ip,
-    ipLogin: ip,
-    userAgent: ua,
-    locked: false,
-    vipLevel: 'VIP1',
-    role: 'user'
-  });
+  const updatedUser = await User.findById(user._id);
+  if (!updatedUser) {
+    req.session.destroy(() => {});
+    return res.status(401).send('❌ Tài khoản không tồn tại!');
+  }
 
-  await newUser.save();
-  req.session.user = newUser;
-  res.redirect('/menu.html');
+  if (updatedUser.locked) {
+    req.session.destroy(() => {});
+    return res.status(403).send('🔒 Tài khoản đã bị khóa!');
+  }
+
+  res.json(updatedUser);
 });
 
 // ✅ Đăng nhập
@@ -122,7 +111,9 @@ app.post('/login', async (req, res) => {
     password
   });
 
-  if (!user || user.locked) return res.status(401).send('❌ Sai tài khoản hoặc đã bị khóa');
+  if (!user || user.locked) {
+    return res.status(401).send('❌ Sai tài khoản hoặc đã bị khóa');
+  }
 
   user.lastLogin = new Date();
   user.ipLogin = ip;
@@ -130,21 +121,60 @@ app.post('/login', async (req, res) => {
   await user.save();
 
   req.session.user = user;
+
   return res.redirect(user.role === 'qtv' ? '/data.html' : '/menu.html');
 });
 
-// ✅ Đăng xuất
+// ✅ Đăng ký
+app.post('/register', async (req, res) => {
+  const { username, email, phone, password } = req.body;
+  const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+
+  if (existingUser) {
+    return res.status(409).send('⚠️ Tên đăng nhập hoặc email đã tồn tại!');
+  }
+
+  const now = new Date();
+  const ip = req.ip;
+  const ua = req.headers['user-agent'];
+
+  const newUser = new User({
+    userId: Math.floor(100000 + Math.random() * 900000).toString(),
+    username,
+    email,
+    phone,
+    password,
+    balance: 0,
+    investment: 0,
+    registeredAt: now,
+    lastLogin: now,
+    ipRegister: ip,
+    ipLogin: ip,
+    userAgent: ua,
+    locked: false,
+    vipLevel: 'VIP1',
+    role: 'user'
+  });
+
+  await newUser.save();
+  req.session.user = newUser;
+  res.redirect('/menu.html');
+});
+
+// ✅ Đăng xuất chuẩn chỉnh
 app.get('/logout', (req, res) => {
   req.session.destroy(err => {
     if (err) {
-      console.error('❌ Hủy session lỗi:', err);
+      console.error('❌ Lỗi hủy session:', err);
       return res.status(500).send('Đăng xuất thất bại');
     }
+
     res.clearCookie('connect.sid', {
       path: '/',
       httpOnly: true,
       secure: false
     });
+
     res.redirect('/index.html');
   });
 });
@@ -152,7 +182,7 @@ app.get('/logout', (req, res) => {
 // ✅ File tĩnh
 app.use(express.static(path.join(__dirname, '/')));
 
-// ✅ Khởi chạy
+// ✅ Khởi chạy server
 app.listen(3000, () => {
-  console.log('🚀 Server chạy tại http://localhost:3000');
+  console.log('🚀 Server đang chạy tại http://localhost:3000');
 });
