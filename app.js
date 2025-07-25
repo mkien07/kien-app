@@ -1,3 +1,5 @@
+require('dotenv').config(); // 🧪 Load biến môi trường .env
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
@@ -5,27 +7,29 @@ const path = require('path');
 const session = require('express-session');
 
 const app = express();
-
-// 🔗 Kết nối MongoDB
-mongoose.connect(process.env.MONGO_URI);
-
-// ⚙️ Lấy IP chính xác từ proxy
+// ⬆️ Đặt ngay sau phần tạo app
 app.set('trust proxy', true);
 
-// 🔐 Cài đặt session
-app.use(session({
-  secret: 'kienDangCap',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    maxAge: 7 * 24 * 60 * 60 * 1000 // giữ 7 ngày
-  }
-}));
+// 🛡️ Middleware check IP & log
+app.use((req, res, next) => {
+  const ip = req.ip;
+  console.log('🌐 Truy cập từ IP:', ip);
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+  // Nếu muốn chặn IP thì dùng như sau:
+  // const blockedIps = ['111.222.333.444'];
+  // if (blockedIps.includes(ip)) {
+  //   return res.status(403).send('⛔ IP bị chặn');
+  // }
 
-// 🧩 Schema người dùng
+  next();
+});
+
+// 🔗 Kết nối MongoDB
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('✅ MongoDB connected'))
+  .catch(err => console.error('❌ MongoDB error:', err));
+
+// 🧩 Mô hình dữ liệu
 const userSchema = new mongoose.Schema({
   userId: String,
   username: String,
@@ -41,37 +45,46 @@ const userSchema = new mongoose.Schema({
   userAgent: String,
   locked: Boolean,
   vipLevel: String,
-  role: { type: String, default: 'user' }
+  role: { type: String, default: 'user' } // user, qtv, admin
 });
 
 const User = mongoose.model('User', userSchema);
 
-// ✅ API kiểm tra phiên đăng nhập & role
-app.get('/check-session', (req, res) => {
-  if (req.session?.user) {
-    res.json({ loggedIn: true, role: req.session.user.role });
-  } else {
-    res.json({ loggedIn: false });
-  }
-});
+// 🔧 Tạo mã UID ngẫu nhiên
+function generateUserId() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
-// ✅ Bảo vệ truy cập các trang
+// 🔐 Cài đặt session
+app.use(session({
+  secret: 'kienDangCap',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 7 * 24 * 60 * 60 * 1000 // lưu session 7 ngày
+  }
+}));
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// ✅ Bảo vệ truy cập /menu.html
 app.get('/menu.html', (req, res, next) => {
-  req.session?.user ? next() : res.redirect('/index.html');
+  req.session.user ? next() : res.redirect('/index.html');
 });
 
 app.get('/reg.html', (req, res, next) => {
-  req.session?.user ? res.redirect('/menu.html') : next();
+  req.session.user ? res.redirect('/menu.html') : next();
 });
 
-// ✅ Lấy thông tin người dùng
+// ✅ API lấy thông tin người dùng hiện tại
 app.get('/profile', async (req, res) => {
-  const user = req.session?.user;
+  const user = req.session.user;
   if (!user) return res.status(401).send('❌ Chưa đăng nhập');
 
-  if (user.username === 'admin') return res.json(user); // admin không cần DB
+  if (user.username === 'admin') return res.json(user); // admin dùng session object
 
-  const updatedUser = await User.findById(user._id);
+  const updatedUser = await User.findOne({ userId: user.userId }); // 🛠 fix lỗi _id với admin
   if (!updatedUser) {
     req.session.destroy(() => {});
     return res.status(401).send('❌ Tài khoản không tồn tại!');
@@ -88,8 +101,6 @@ app.get('/profile', async (req, res) => {
 // ✅ Đăng nhập
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  const ip = req.ip;
-  const ua = req.headers['user-agent'];
 
   if (username === 'admin' && password === 'maikien') {
     req.session.user = {
@@ -99,8 +110,6 @@ app.post('/login', async (req, res) => {
       vipLevel: 'ADMIN',
       registeredAt: new Date(),
       lastLogin: new Date(),
-      ipLogin: ip,
-      userAgent: ua,
       role: 'admin'
     };
     return res.redirect('/data.html');
@@ -116,8 +125,8 @@ app.post('/login', async (req, res) => {
   }
 
   user.lastLogin = new Date();
-  user.ipLogin = ip;
-  user.userAgent = ua;
+  user.ipLogin = req.ip;
+  user.userAgent = req.headers['user-agent'];
   await user.save();
 
   req.session.user = user;
@@ -135,22 +144,14 @@ app.post('/register', async (req, res) => {
   }
 
   const now = new Date();
-  const ip = req.ip;
-  const ua = req.headers['user-agent'];
-
   const newUser = new User({
-    userId: Math.floor(100000 + Math.random() * 900000).toString(),
-    username,
-    email,
-    phone,
-    password,
-    balance: 0,
-    investment: 0,
-    registeredAt: now,
-    lastLogin: now,
-    ipRegister: ip,
-    ipLogin: ip,
-    userAgent: ua,
+    userId: generateUserId(),
+    username, email, phone, password,
+    balance: 0, investment: 0,
+    registeredAt: now, lastLogin: now,
+    ipRegister: req.ip,
+    ipLogin: req.ip,
+    userAgent: req.headers['user-agent'],
     locked: false,
     vipLevel: 'VIP1',
     role: 'user'
@@ -161,7 +162,7 @@ app.post('/register', async (req, res) => {
   res.redirect('/menu.html');
 });
 
-// ✅ Đăng xuất chuẩn chỉnh
+// ✅ Đăng xuất mạnh tay
 app.get('/logout', (req, res) => {
   req.session.destroy(err => {
     if (err) {
@@ -175,11 +176,76 @@ app.get('/logout', (req, res) => {
       secure: false
     });
 
+    req.session = null;
     res.redirect('/index.html');
   });
 });
 
-// ✅ File tĩnh
+// ✅ Quản trị: danh sách user
+app.get('/admin/users', async (req, res) => {
+  const role = req.session.user?.role;
+  const isAdmin = req.session.user?.username === 'admin';
+  if (!req.session.user || (!['admin', 'qtv'].includes(role) && !isAdmin)) {
+    return res.status(403).send('❌ Không có quyền');
+  }
+  const users = await User.find();
+  res.json(users);
+});
+
+// ✅ Quản trị: cập nhật user
+app.put('/admin/user/:id', async (req, res) => {
+  const role = req.session.user?.role;
+  const isAdmin = req.session.user?.username === 'admin';
+  if (!req.session.user || (!['admin', 'qtv'].includes(role) && !isAdmin)) {
+    return res.status(403).send('❌ Không có quyền');
+  }
+
+  if (role === 'qtv') {
+    await User.findByIdAndUpdate(req.params.id, { locked: req.body.locked });
+    return res.send('✅ QTV đã cập nhật trạng thái tài khoản');
+  }
+
+  const {
+    email, password,
+    balance, investment,
+    vipLevel, locked,
+    role: newRole
+  } = req.body;
+
+  await User.findByIdAndUpdate(req.params.id, {
+    email, password,
+    balance, investment,
+    vipLevel, locked,
+    role: newRole
+  });
+
+  res.send('✅ Admin đã cập nhật tài khoản');
+});
+
+// ✅ Khóa/Mở user
+app.post('/admin/user/:id/lock', async (req, res) => {
+  const user = await User.findById(req.params.id);
+  user.locked = !user.locked;
+  await user.save();
+  res.send('✅ Đã thay đổi trạng thái khóa');
+});
+
+// ✅ Cộng tiền
+app.post('/admin/user/:id/balance', async (req, res) => {
+  const { amount } = req.body;
+  const user = await User.findById(req.params.id);
+  user.balance += amount;
+  await user.save();
+  res.send('✅ Đã cộng tiền');
+});
+
+// ✅ Xóa tài khoản
+app.delete('/admin/user/:id', async (req, res) => {
+  await User.findByIdAndDelete(req.params.id);
+  res.send('✅ Đã xóa tài khoản');
+});
+
+// ✅ Phục vụ file tĩnh
 app.use(express.static(path.join(__dirname, '/')));
 
 // ✅ Khởi chạy server
