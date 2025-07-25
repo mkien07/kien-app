@@ -45,23 +45,29 @@
     .header .icon { font-size:24px; cursor:pointer; color:#333; }
     .title { font-size:18px; font-weight:600; }
 
-    /* Balance với count-up */
+    /* Balance */
     .balance {
       text-align:center; background:linear-gradient(135deg,#4facfe,#00f2fe);
       color:#fff; padding:20px;
     }
+    .balance small {
+      font-size:12px; opacity:.8; display:block;
+    }
     .balance #balance { font-size:28px; font-weight:600; }
 
-    /* Tab slide */
+    /* Tabs */
     .tabs { display:flex; margin:16px; background:#eef3f8; border-radius:50px; overflow:hidden; }
     .tab {
       flex:1; text-align:center; padding:10px 0; cursor:pointer;
-      transition: background 0.3s, color 0.3s;
+      transition: background .3s, color .3s;
       font-size:14px; color:#555;
     }
-    .tab.active { background:#fff; color:#4facfe; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+    .tab.active {
+      background:#fff; color:#4facfe;
+      box-shadow:0 4px 12px rgba(0,0,0,0.1);
+    }
 
-    /* Form & inputs */
+    /* Form */
     .form { padding:0 16px; position:relative; }
     .input-group { position:relative; margin-top:16px; }
     .input-group .material-icons {
@@ -73,53 +79,41 @@
       width:100%; padding:12px 12px 12px 44px;
       border:1px solid #ccc; border-radius:12px;
       font-size:14px; background:rgba(255,255,255,0.8);
-      transition: border-color 0.3s, box-shadow 0.3s;
+      transition: border-color .3s, box-shadow .3s;
     }
-    /* Glow on focus */
     .input-group input:focus,
     .input-group select:focus {
       outline:none; border-color:#4facfe;
       box-shadow:0 0 8px rgba(79,172,254,0.6);
     }
 
-    /* Ripple button */
+    /* Button */
     .btn-withdraw {
       position:relative; overflow:hidden;
       width:100%; padding:14px; margin-top:20px;
       background:linear-gradient(135deg,#4facfe,#00f2fe);
       color:#fff; border:none; border-radius:12px;
       font-size:16px; cursor:pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition:opacity .2s, transform .2s;
     }
-    .btn-withdraw:hover {
-      transform:scale(1.02); box-shadow:0 6px 20px rgba(0,0,0,0.2);
-    }
-    .btn-withdraw:after {
-      content:""; position:absolute; width:100px; height:100px;
-      top:50%; left:50%; pointer-events:none;
-      background:rgba(255,255,255,0.5); opacity:0;
-      border-radius:50%; transform:translate(-50%,-50%) scale(0);
-      transition:transform 0.6s, opacity 1s;
-    }
-    .btn-withdraw:active:after {
-      transform:translate(-50%,-50%) scale(2);
-      opacity:1; transition:0s;
+    .btn-withdraw:disabled { opacity:.5; cursor:not-allowed; }
+    .btn-withdraw:hover:not(:disabled) {
+      transform:scale(1.02);
     }
 
     .note { text-align:center; font-size:12px; color:#555; margin-top:16px; }
 
-    /* Modal fade */
+    /* Modal */
     .modal {
       position:fixed; top:0; left:0; width:100%; height:100%;
-      background:rgba(0,0,0,0.5); display:none; opacity:0;
-      align-items:center; justify-content:center; z-index:1000;
-      transition:opacity 0.3s;
+      background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center;
+      z-index:1000; opacity:0; transition:opacity .3s;
     }
     .modal.show { display:flex; opacity:1; }
     .modal-content {
       background:#fff; padding:20px; border-radius:12px;
       text-align:center; box-shadow:0 4px 16px rgba(0,0,0,0.2);
-      transform:translateY(-20px); transition:transform 0.3s;
+      transform:translateY(-20px); transition:transform .3s;
     }
     .modal.show .modal-content { transform:translateY(0); }
     .modal-content p { margin-bottom:10px; font-size:16px; }
@@ -148,7 +142,7 @@
     </div>
 
     <div class="balance">
-      <div>Số dư hiện tại</div>
+      <small>Số dư khả dụng (tối thiểu 50.000₫)</small>
       <div id="balance">0₫</div>
     </div>
 
@@ -190,11 +184,11 @@
 
       <div class="input-group">
         <i class="material-icons">attach_money</i>
-        <input type="number" name="amount" placeholder="Số tiền muốn rút" min="1" required>
+        <input id="amountInput" type="number" name="amount" placeholder="Số tiền muốn rút" min="50000" required>
       </div>
 
-      <button class="btn-withdraw" type="submit">Rút ngay</button>
-      <div class="note">Tối thiểu 50,000₫, phí 0.5%</div>
+      <button id="btnWithdraw" class="btn-withdraw" type="submit" disabled>Rút ngay</button>
+      <div class="note">Phí 0.5%</div>
     </form>
   </div>
 
@@ -205,72 +199,94 @@
     </div>
   </div>
 
-  <!-- Confetti Library -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
   <script>
-    // Animate number count-up
-    function animateValue(el, start, end, duration) {
-      let range = end - start, current = start, increment = range / (duration/16);
-      function step() {
-        current += increment;
-        if ((increment>0 && current>=end) || (increment<0 && current<=end)) {
-          el.innerText = end.toLocaleString() + '₫'; return;
-        }
-        el.innerText = Math.floor(current).toLocaleString() + '₫';
-        requestAnimationFrame(step);
-      }
-      step();
-    }
+    const balanceEl   = document.getElementById('balance');
+    const amountInput = document.getElementById('amountInput');
+    const btnWithdraw = document.getElementById('btnWithdraw');
 
-    // Load balance + count-up
+    // Load số dư
     async function loadBalance() {
       try {
-        const res = await fetch('/profile');
-        const data = await res.json();
-        animateValue(document.getElementById('balance'), 0, data.balance, 800);
-      } catch (e) { console.error(e); }
-    }
-    loadBalance();
-
-    // Tab switching
-    document.getElementById('tabBank').onclick = () => switchTab('bank');
-    document.getElementById('tabUsdt').onclick = () => switchTab('usdt');
-    function switchTab(type) {
-      document.getElementById('tabBank').classList.toggle('active', type==='bank');
-      document.getElementById('tabUsdt').classList.toggle('active', type==='usdt');
-      document.getElementById('bankFields').style.display = (type==='bank'?'block':'none');
-      document.getElementById('usdtFields').style.display = (type==='usdt'?'block':'none');
+        const res  = await fetch('/profile');
+        const user = await res.json();
+        const bal  = user.balance || 0;
+        balanceEl.innerText = bal.toLocaleString() + '₫';
+        validate(bal, parseFloat(amountInput.value || 0));
+      } catch {
+        balanceEl.innerText = 'Lỗi';
+      }
     }
 
-    // Close modal
-    function closeModal() {
-      const modal = document.getElementById('successModal');
-      modal.classList.remove('show');
+    // Validate số dư & amount
+    function validate(balance, amount) {
+      const ok = balance >= 50000 && amount >= 50000 && amount <= balance;
+      btnWithdraw.disabled = !ok;
     }
 
-    // Handle withdraw + confetti + modal animation
-    document.getElementById('withdrawForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      const payload = Object.fromEntries(new FormData(e.target));
-      try {
+    // Count-up animation
+    function animateValue(el, start, end, duration) {
+      let range = end - start, current = start, inc = range/(duration/16);
+      (function step() {
+        current += inc;
+        if ((inc>0 && current>=end)||(inc<0 && current<=end)) {
+          el.innerText = end.toLocaleString()+'₫'; return;
+        }
+        el.innerText = Math.floor(current).toLocaleString()+'₫';
+        requestAnimationFrame(step);
+      })();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadBalance();
+
+      // Tab switch
+      document.getElementById('tabBank').onclick = () => switchTab('bank');
+      document.getElementById('tabUsdt').onclick = () => switchTab('usdt');
+      function switchTab(type) {
+        document.getElementById('tabBank').classList.toggle('active', type==='bank');
+        document.getElementById('tabUsdt').classList.toggle('active', type==='usdt');
+        document.getElementById('bankFields').style.display = type==='bank'?'block':'none';
+        document.getElementById('usdtFields').style.display = type==='usdt'?'block':'none';
+      }
+
+      // Input event
+      amountInput.addEventListener('input', () => {
+        const amt = parseFloat(amountInput.value) || 0;
+        const bal = parseFloat(balanceEl.innerText.replace(/\D/g,'')) || 0;
+        validate(bal, amt);
+      });
+
+      // Submit
+      document.getElementById('withdrawForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const payload = Object.fromEntries(new FormData(e.target));
         const res = await fetch('/withdraw', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify(payload)
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
         });
         if (res.ok) {
-          loadBalance();
+          // update số dư với count-up
+          const user = await res.json(); // trả về { newBalance }
+          animateValue(balanceEl,
+            parseFloat(balanceEl.innerText.replace(/\D/g,'')),
+            user.newBalance, 800);
+          // popup + confetti
           const modal = document.getElementById('successModal');
           modal.classList.add('show');
-          confetti({ particleCount:100, spread:70, origin:{ y:0.6 } });
+          confetti({ particleCount:100, spread:70, origin:{y:0.6} });
           e.target.reset();
+          btnWithdraw.disabled = true;
         } else {
-          alert('Rút thất bại, thử lại sau.');
+          alert('Rút thất bại');
         }
-      } catch {
-        alert('Lỗi kết nối.');
-      }
+      });
     });
+
+    function closeModal(){
+      const m = document.getElementById('successModal');
+      m.classList.remove('show');
+    }
   </script>
 </body>
 </html>
