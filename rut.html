@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Rút Tiền</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    /* Reset & Body */
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(-45deg,#4facfe,#00f2fe,#fef3ff,#f4f7fa);
+      background-size: 400% 400%; animation: gradientBG 20s ease infinite;
+      min-height:100vh; overflow-y:auto;
+      padding-top:env(safe-area-inset-top);
+      padding-bottom:env(safe-area-inset-bottom);
+    }
+    @keyframes gradientBG {
+      0%{background-position:0% 50%;}
+      50%{background-position:100% 50%;}
+      100%{background-position:0% 50%;}
+    }
+
+    /* Bubbles */
+    .bubbles { position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; overflow:hidden; }
+    .bubble {
+      position:absolute; bottom:-100px;
+      background: rgba(255,255,255,0.2); border-radius:50%;
+      animation: rise linear infinite, sway ease-in-out infinite;
+    }
+    @keyframes rise {0%{transform:translateY(0);opacity:0;}50%{opacity:1;}100%{transform:translateY(-120vh);opacity:0;}}
+    @keyframes sway {0%,100%{transform:translateX(0);}50%{transform:translateX(20px);}}
+
+    /* Container */
+    .container {
+      max-width:400px; margin:40px auto; background:rgba(255,255,255,0.6);
+      backdrop-filter:blur(12px); border-radius:16px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.1); padding-bottom:20px;
+    }
+
+    /* Header */
+    .header { display:flex;justify-content:space-between;align-items:center;padding:16px; }
+    .header .icon { font-size:24px; cursor:pointer; color:#333; }
+    .title { font-size:18px; font-weight:600; }
+
+    /* Balance với count-up */
+    .balance {
+      text-align:center; background:linear-gradient(135deg,#4facfe,#00f2fe);
+      color:#fff; padding:20px;
+    }
+    .balance #balance { font-size:28px; font-weight:600; }
+
+    /* Tab slide */
+    .tabs { display:flex; margin:16px; background:#eef3f8; border-radius:50px; overflow:hidden; }
+    .tab {
+      flex:1; text-align:center; padding:10px 0; cursor:pointer;
+      transition: background 0.3s, color 0.3s;
+      font-size:14px; color:#555;
+    }
+    .tab.active { background:#fff; color:#4facfe; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+
+    /* Form & inputs */
+    .form { padding:0 16px; position:relative; }
+    .input-group { position:relative; margin-top:16px; }
+    .input-group .material-icons {
+      position:absolute; left:12px; top:50%; transform:translateY(-50%);
+      color:#555; font-size:20px;
+    }
+    .input-group input,
+    .input-group select {
+      width:100%; padding:12px 12px 12px 44px;
+      border:1px solid #ccc; border-radius:12px;
+      font-size:14px; background:rgba(255,255,255,0.8);
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    /* Glow on focus */
+    .input-group input:focus,
+    .input-group select:focus {
+      outline:none; border-color:#4facfe;
+      box-shadow:0 0 8px rgba(79,172,254,0.6);
+    }
+
+    /* Ripple button */
+    .btn-withdraw {
+      position:relative; overflow:hidden;
+      width:100%; padding:14px; margin-top:20px;
+      background:linear-gradient(135deg,#4facfe,#00f2fe);
+      color:#fff; border:none; border-radius:12px;
+      font-size:16px; cursor:pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-withdraw:hover {
+      transform:scale(1.02); box-shadow:0 6px 20px rgba(0,0,0,0.2);
+    }
+    .btn-withdraw:after {
+      content:""; position:absolute; width:100px; height:100px;
+      top:50%; left:50%; pointer-events:none;
+      background:rgba(255,255,255,0.5); opacity:0;
+      border-radius:50%; transform:translate(-50%,-50%) scale(0);
+      transition:transform 0.6s, opacity 1s;
+    }
+    .btn-withdraw:active:after {
+      transform:translate(-50%,-50%) scale(2);
+      opacity:1; transition:0s;
+    }
+
+    .note { text-align:center; font-size:12px; color:#555; margin-top:16px; }
+
+    /* Modal fade */
+    .modal {
+      position:fixed; top:0; left:0; width:100%; height:100%;
+      background:rgba(0,0,0,0.5); display:none; opacity:0;
+      align-items:center; justify-content:center; z-index:1000;
+      transition:opacity 0.3s;
+    }
+    .modal.show { display:flex; opacity:1; }
+    .modal-content {
+      background:#fff; padding:20px; border-radius:12px;
+      text-align:center; box-shadow:0 4px 16px rgba(0,0,0,0.2);
+      transform:translateY(-20px); transition:transform 0.3s;
+    }
+    .modal.show .modal-content { transform:translateY(0); }
+    .modal-content p { margin-bottom:10px; font-size:16px; }
+    .modal-content button {
+      padding:8px 20px; background:#4facfe; border:none;
+      color:#fff; border-radius:8px; cursor:pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bubbles">
+    <span class="bubble" style="width:60px;height:60px;left:10%;animation-duration:18s;"></span>
+    <span class="bubble" style="width:40px;height:40px;left:25%;animation-duration:14s;"></span>
+    <span class="bubble" style="width:100px;height:100px;left:40%;animation-duration:22s;"></span>
+    <span class="bubble" style="width:50px;height:50px;left:55%;animation-duration:16s;"></span>
+    <span class="bubble" style="width:90px;height:90px;left:70%;animation-duration:25s;"></span>
+    <span class="bubble" style="width:30px;height:30px;left:85%;animation-duration:12s;"></span>
+  </div>
+
+  <div class="container">
+    <div class="header">
+      <i class="material-icons icon" onclick="history.back()">arrow_back</i>
+      <div class="title">Rút tiền</div>
+      <i class="material-icons icon" onclick="alert('Hướng dẫn rút tiền')">help_outline</i>
+    </div>
+
+    <div class="balance">
+      <div>Số dư hiện tại</div>
+      <div id="balance">0₫</div>
+    </div>
+
+    <div class="tabs">
+      <div id="tabBank" class="tab active">Ngân hàng</div>
+      <div id="tabUsdt" class="tab">USDT</div>
+    </div>
+
+    <form id="withdrawForm" class="form">
+      <div id="bankFields">
+        <div class="input-group">
+          <i class="material-icons">account_circle</i>
+          <input type="text" name="accountNumber" placeholder="Số tài khoản" required>
+        </div>
+        <div class="input-group">
+          <i class="material-icons">badge</i>
+          <input type="text" name="accountName" placeholder="Chủ tài khoản" required>
+        </div>
+        <div class="input-group">
+          <i class="material-icons">account_balance</i>
+          <input type="text" name="bankName" placeholder="Ngân hàng" required>
+        </div>
+      </div>
+
+      <div id="usdtFields" style="display:none;">
+        <div class="input-group">
+          <i class="material-icons">qr_code</i>
+          <input type="text" name="usdtAddress" placeholder="Địa chỉ ví USDT">
+        </div>
+        <div class="input-group">
+          <i class="material-icons">settings_ethernet</i>
+          <select name="network">
+            <option value="TRC20">TRC20</option>
+            <option value="ERC20">ERC20</option>
+            <option value="BEP20">BEP20</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <i class="material-icons">attach_money</i>
+        <input type="number" name="amount" placeholder="Số tiền muốn rút" min="1" required>
+      </div>
+
+      <button class="btn-withdraw" type="submit">Rút ngay</button>
+      <div class="note">Tối thiểu 50,000₫, phí 0.5%</div>
+    </form>
+  </div>
+
+  <div id="successModal" class="modal">
+    <div class="modal-content">
+      <p>Rút tiền thành công!</p>
+      <button onclick="closeModal()">Đóng</button>
+    </div>
+  </div>
+
+  <!-- Confetti Library -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+  <script>
+    // Animate number count-up
+    function animateValue(el, start, end, duration) {
+      let range = end - start, current = start, increment = range / (duration/16);
+      function step() {
+        current += increment;
+        if ((increment>0 && current>=end) || (increment<0 && current<=end)) {
+          el.innerText = end.toLocaleString() + '₫'; return;
+        }
+        el.innerText = Math.floor(current).toLocaleString() + '₫';
+        requestAnimationFrame(step);
+      }
+      step();
+    }
+
+    // Load balance + count-up
+    async function loadBalance() {
+      try {
+        const res = await fetch('/profile');
+        const data = await res.json();
+        animateValue(document.getElementById('balance'), 0, data.balance, 800);
+      } catch (e) { console.error(e); }
+    }
+    loadBalance();
+
+    // Tab switching
+    document.getElementById('tabBank').onclick = () => switchTab('bank');
+    document.getElementById('tabUsdt').onclick = () => switchTab('usdt');
+    function switchTab(type) {
+      document.getElementById('tabBank').classList.toggle('active', type==='bank');
+      document.getElementById('tabUsdt').classList.toggle('active', type==='usdt');
+      document.getElementById('bankFields').style.display = (type==='bank'?'block':'none');
+      document.getElementById('usdtFields').style.display = (type==='usdt'?'block':'none');
+    }
+
+    // Close modal
+    function closeModal() {
+      const modal = document.getElementById('successModal');
+      modal.classList.remove('show');
+    }
+
+    // Handle withdraw + confetti + modal animation
+    document.getElementById('withdrawForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const payload = Object.fromEntries(new FormData(e.target));
+      try {
+        const res = await fetch('/withdraw', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(payload)
+        });
+        if (res.ok) {
+          loadBalance();
+          const modal = document.getElementById('successModal');
+          modal.classList.add('show');
+          confetti({ particleCount:100, spread:70, origin:{ y:0.6 } });
+          e.target.reset();
+        } else {
+          alert('Rút thất bại, thử lại sau.');
+        }
+      } catch {
+        alert('Lỗi kết nối.');
+      }
+    });
+  </script>
+</body>
+</html>
