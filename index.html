@@ -21,7 +21,7 @@
   <div class="background"></div>
 
   <!-- Form đăng nhập -->
-  <div class="login-box" id="loginBox" style="display: none;">
+  <div class="login-box" id="loginBox">
     <h2>Chào mừng bạn 🌸</h2>
     <form id="loginForm">
       <div class="input-group">
@@ -50,18 +50,8 @@
       pwdInput.type = pwdInput.type === 'password' ? 'text' : 'password';
     }
 
-    // Kiểm tra phiên đăng nhập
-    fetch('/check-session')
-      .then(res => res.json())
-      .then(data => {
-        if (data.loggedIn && data.role === 'user') {
-          window.location.href = 'menu.html';
-        } else if (data.loggedIn && (data.role === 'admin' || data.role === 'qtv')) {
-          window.location.href = 'data.html';
-        } else {
-          document.getElementById('loginBox').style.display = 'block';
-        }
-      });
+    // Hiển thị form đăng nhập ngay khi load
+    document.getElementById('loginBox').style.display = 'block';
 
     // Xử lý form đăng nhập
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
