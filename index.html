@@ -21,7 +21,7 @@
   <div class="background"></div>
 
   <!-- Form đăng nhập -->
-  <div class="login-box">
+  <div class="login-box" id="loginBox" style="display: none;">
     <h2>Chào mừng bạn 🌸</h2>
     <form id="loginForm">
       <div class="input-group">
@@ -49,6 +49,17 @@
       const pwdInput = document.getElementById('password');
       pwdInput.type = pwdInput.type === 'password' ? 'text' : 'password';
     }
+
+    // Kiểm tra phiên đăng nhập
+    fetch('/check-session')
+      .then(res => res.json())
+      .then(data => {
+        if (data.loggedIn) {
+          window.location.href = 'data.html'; // đã login → chuyển luôn
+        } else {
+          document.getElementById('loginBox').style.display = 'block';
+        }
+      });
 
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
       e.preventDefault();
