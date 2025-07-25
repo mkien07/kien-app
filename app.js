@@ -12,7 +12,20 @@ mongoose.connect(process.env.MONGO_URI);
 // ⚙️ Cấu hình proxy để lấy IP thật
 app.set('trust proxy', true);
 
-// 🧩 Mô hình dữ liệu
+// 🔐 Cài đặt session
+app.use(session({
+  secret: 'kienDangCap',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 7 * 24 * 60 * 60 * 1000 // Giữ phiên 7 ngày
+  }
+}));
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// 📦 Schema người dùng
 const userSchema = new mongoose.Schema({
   userId: String,
   username: String,
@@ -33,48 +46,54 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// 🔐 Cài đặt session
-app.use(session({
-  secret: 'kienDangCap',
-  resave: false,
-  saveUninitialized: false
-}));
-
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-
-// ✅ API kiểm tra phiên đăng nhập
+// ✅ API kiểm tra session + quyền
 app.get('/check-session', (req, res) => {
-  res.json({ loggedIn: !!req.session.user });
+  if (req.session?.user) {
+    res.json({ loggedIn: true, role: req.session.user.role });
+  } else {
+    res.json({ loggedIn: false });
+  }
 });
 
-// ✅ Bảo vệ truy cập /menu.html
+// ✅ Route bảo vệ
 app.get('/menu.html', (req, res, next) => {
-  req.session.user ? next() : res.redirect('/index.html');
+  req.session?.user ? next() : res.redirect('/index.html');
 });
-
 app.get('/reg.html', (req, res, next) => {
-  req.session.user ? res.redirect('/menu.html') : next();
+  req.session?.user ? res.redirect('/menu.html') : next();
 });
 
-// ✅ API lấy thông tin người dùng
-app.get('/profile', async (req, res) => {
-  if (!req.session.user) return res.status(401).send('❌ Chưa đăng nhập');
+// ✅ Đăng ký
+app.post('/register', async (req, res) => {
+  const { username, email, phone, password } = req.body;
+  const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+  if (existingUser) return res.status(409).send('⚠️ Tên đăng nhập hoặc email đã tồn tại!');
 
-  if (req.session.user.username === 'admin') return res.json(req.session.user);
+  const now = new Date();
+  const ip = req.ip;
+  const ua = req.headers['user-agent'];
 
-  const updatedUser = await User.findById(req.session.user._id);
-  if (!updatedUser) {
-    req.session.destroy();
-    return res.status(401).send('❌ Tài khoản không tồn tại!');
-  }
+  const newUser = new User({
+    userId: Math.floor(100000 + Math.random() * 900000).toString(),
+    username,
+    email,
+    phone,
+    password,
+    balance: 0,
+    investment: 0,
+    registeredAt: now,
+    lastLogin: now,
+    ipRegister: ip,
+    ipLogin: ip,
+    userAgent: ua,
+    locked: false,
+    vipLevel: 'VIP1',
+    role: 'user'
+  });
 
-  if (updatedUser.locked) {
-    req.session.destroy();
-    return res.status(403).send('🔒 Tài khoản bị khóa!');
-  }
-
-  res.json(updatedUser);
+  await newUser.save();
+  req.session.user = newUser;
+  res.redirect('/menu.html');
 });
 
 // ✅ Đăng nhập
@@ -103,9 +122,7 @@ app.post('/login', async (req, res) => {
     password
   });
 
-  if (!user || user.locked) {
-    return res.status(401).send('❌ Sai tài khoản hoặc đã bị khóa');
-  }
+  if (!user || user.locked) return res.status(401).send('❌ Sai tài khoản hoặc đã bị khóa');
 
   user.lastLogin = new Date();
   user.ipLogin = ip;
@@ -113,129 +130,29 @@ app.post('/login', async (req, res) => {
   await user.save();
 
   req.session.user = user;
-
-  if (user.role === 'qtv') return res.redirect('/data.html');
-  return res.redirect('/menu.html');
-});
-
-// ✅ Đăng ký
-app.post('/register', async (req, res) => {
-  const { username, email, phone, password } = req.body;
-  const ip = req.ip;
-  const ua = req.headers['user-agent'];
-
-  const existingUser = await User.findOne({ $or: [{ username }, { email }] });
-  if (existingUser) return res.status(409).send('⚠️ Tài khoản hoặc email đã tồn tại');
-
-  const now = new Date();
-  const newUser = new User({
-    userId: Math.floor(100000 + Math.random() * 900000).toString(),
-    username,
-    email,
-    phone,
-    password,
-    balance: 0,
-    investment: 0,
-    registeredAt: now,
-    lastLogin: now,
-    ipRegister: ip,
-    ipLogin: ip,
-    userAgent: ua,
-    locked: false,
-    vipLevel: 'VIP1',
-    role: 'user'
-  });
-
-  await newUser.save();
-  req.session.user = newUser;
-  res.redirect('/menu.html');
+  return res.redirect(user.role === 'qtv' ? '/data.html' : '/menu.html');
 });
 
 // ✅ Đăng xuất
 app.get('/logout', (req, res) => {
   req.session.destroy(err => {
     if (err) {
-      console.error('❌ Lỗi hủy session:', err);
+      console.error('❌ Hủy session lỗi:', err);
       return res.status(500).send('Đăng xuất thất bại');
     }
-
     res.clearCookie('connect.sid', {
-      path: '/', // 👈 Xác định rõ path để xoá đúng cookie
+      path: '/',
       httpOnly: true,
-      secure: false // nếu dùng HTTPS thì để true
+      secure: false
     });
-
     res.redirect('/index.html');
   });
-});
-
-// ✅ Quản lý user (Admin / QTV)
-app.get('/admin/users', async (req, res) => {
-  const role = req.session.user?.role;
-  const isAdmin = req.session.user?.username === 'admin';
-  if (!req.session.user || (!['admin', 'qtv'].includes(role) && !isAdmin)) {
-    return res.status(403).send('❌ Không có quyền');
-  }
-  const users = await User.find();
-  res.json(users);
-});
-
-app.put('/admin/user/:id', async (req, res) => {
-  const role = req.session.user?.role;
-  const isAdmin = req.session.user?.username === 'admin';
-
-  if (!req.session.user || (!['admin', 'qtv'].includes(role) && !isAdmin)) {
-    return res.status(403).send('❌ Không có quyền');
-  }
-
-  if (role === 'qtv') {
-    await User.findByIdAndUpdate(req.params.id, {
-      locked: req.body.locked
-    });
-    return res.send('✅ QTV đã cập nhật trạng thái tài khoản');
-  }
-
-  const {
-    email, password,
-    balance, investment,
-    vipLevel, locked,
-    role: newRole
-  } = req.body;
-
-  await User.findByIdAndUpdate(req.params.id, {
-    email, password,
-    balance, investment,
-    vipLevel, locked,
-    role: newRole
-  });
-
-  res.send('✅ Admin đã cập nhật tài khoản');
-});
-
-app.post('/admin/user/:id/lock', async (req, res) => {
-  const user = await User.findById(req.params.id);
-  user.locked = !user.locked;
-  await user.save();
-  res.send('✅ Đã thay đổi trạng thái khóa');
-});
-
-app.post('/admin/user/:id/balance', async (req, res) => {
-  const { amount } = req.body;
-  const user = await User.findById(req.params.id);
-  user.balance += amount;
-  await user.save();
-  res.send('✅ Đã cộng tiền');
-});
-
-app.delete('/admin/user/:id', async (req, res) => {
-  await User.findByIdAndDelete(req.params.id);
-  res.send('✅ Đã xóa tài khoản');
 });
 
 // ✅ File tĩnh
 app.use(express.static(path.join(__dirname, '/')));
 
-// ✅ Chạy server
+// ✅ Khởi chạy
 app.listen(3000, () => {
-  console.log('🚀 Server đang chạy tại http://localhost:3000');
+  console.log('🚀 Server chạy tại http://localhost:3000');
 });

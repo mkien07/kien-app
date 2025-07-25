@@ -54,15 +54,16 @@
     fetch('/check-session')
       .then(res => res.json())
       .then(data => {
-        if (data.loggedIn) {
-          // Nếu đã đăng nhập → chuyển sang trang chính
+        if (data.loggedIn && data.role === 'user') {
           window.location.href = 'menu.html';
+        } else if (data.loggedIn && (data.role === 'admin' || data.role === 'qtv')) {
+          window.location.href = 'data.html';
         } else {
-          // Hiển thị form đăng nhập
           document.getElementById('loginBox').style.display = 'block';
         }
       });
 
+    // Xử lý form đăng nhập
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       const username = document.getElementById('username').value.trim();
