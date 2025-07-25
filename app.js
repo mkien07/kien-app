@@ -1,4 +1,4 @@
-require('dotenv').config(); // 🧪 Load biến môi trường .env
+
 
 const express = require('express');
 const bodyParser = require('body-parser');
