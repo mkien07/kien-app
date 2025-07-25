@@ -153,8 +153,20 @@ app.post('/register', async (req, res) => {
 
 // ✅ Đăng xuất
 app.get('/logout', (req, res) => {
-  req.session.destroy();
-  res.redirect('/index.html');
+  req.session.destroy(err => {
+    if (err) {
+      console.error('❌ Lỗi hủy session:', err);
+      return res.status(500).send('Đăng xuất thất bại');
+    }
+
+    res.clearCookie('connect.sid', {
+      path: '/', // 👈 Xác định rõ path để xoá đúng cookie
+      httpOnly: true,
+      secure: false // nếu dùng HTTPS thì để true
+    });
+
+    res.redirect('/index.html');
+  });
 });
 
 // ✅ Quản lý user (Admin / QTV)

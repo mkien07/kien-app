@@ -55,8 +55,10 @@
       .then(res => res.json())
       .then(data => {
         if (data.loggedIn) {
-          window.location.href = 'data.html'; // đã login → chuyển luôn
+          // Nếu đã đăng nhập → chuyển sang trang chính
+          window.location.href = 'menu.html';
         } else {
+          // Hiển thị form đăng nhập
           document.getElementById('loginBox').style.display = 'block';
         }
       });
