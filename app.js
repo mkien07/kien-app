@@ -15,10 +15,10 @@ app.use((req, res, next) => {
   console.log('🌐 Truy cập từ IP:', ip);
 
   // Nếu muốn chặn IP thì thêm:
-  // const blockedIps = ['111.222.333.444'];
-  // if (blockedIps.includes(ip)) {
-  //   return res.status(403).send('⛔ IP bị chặn');
-  // }
+   const blockedIps = ['111.222.333.444'];
+   if (blockedIps.includes(ip)) {
+     return res.status(403).send('⛔ IP bị chặn');
+   }
 
   next();
 });
