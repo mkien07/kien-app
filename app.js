@@ -25,15 +25,10 @@ const userSchema = new mongoose.Schema({
   userAgent: String,
   locked: Boolean,
   vipLevel: String,
-  role: { type: String, default: 'user' } // 👈 phân quyền: user, qtv,     admin
+  role: { type: String, default: 'user' }
 });
 
 const User = mongoose.model('User', userSchema);
-
-// 🔧 Tạo mã UID ngẫu nhiên 
-function generateUserId() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
 
 // 🔐 Cài đặt session
 app.use(session({
@@ -44,6 +39,15 @@ app.use(session({
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// ✅ Kiểm tra phiên đăng nhập
+app.get('/check-session', (req, res) => {
+  if (req.session && req.session.user) {
+    res.json({ loggedIn: true });
+  } else {
+    res.json({ loggedIn: false });
+  }
+});
 
 // ✅ Bảo vệ truy cập /menu.html
 app.get('/menu.html', (req, res, next) => {
@@ -108,12 +112,10 @@ app.post('/login', async (req, res) => {
 
   req.session.user = user;
 
-  // ✅ Nếu là QTV → chuyển sang trang quản trị
   if (user.role === 'qtv') {
     return res.redirect('/data.html');
   }
 
-  // ✅ Người dùng thường → vào menu.html
   return res.redirect('/menu.html');
 });
 
@@ -128,7 +130,7 @@ app.post('/register', async (req, res) => {
 
   const now = new Date();
   const newUser = new User({
-    userId: generateUserId(),
+    userId: Math.floor(100000 + Math.random() * 900000).toString(),
     username,
     email,
     phone,
@@ -156,7 +158,7 @@ app.get('/logout', (req, res) => {
   res.redirect('/index.html');
 });
 
-// ✅ API lấy danh sách người dùng
+// ✅ API admin (quản lý user)
 app.get('/admin/users', async (req, res) => {
   const role = req.session.user?.role;
   const isAdmin = req.session.user?.username === 'admin';
@@ -167,7 +169,6 @@ app.get('/admin/users', async (req, res) => {
   res.json(users);
 });
 
-// ✅ API chỉnh sửa user
 app.put('/admin/user/:id', async (req, res) => {
   const role = req.session.user?.role;
   const isAdmin = req.session.user?.username === 'admin';
@@ -200,7 +201,6 @@ app.put('/admin/user/:id', async (req, res) => {
   res.send('✅ Admin đã cập nhật tài khoản');
 });
 
-// ✅ API khoá/mở user nhanh
 app.post('/admin/user/:id/lock', async (req, res) => {
   const user = await User.findById(req.params.id);
   user.locked = !user.locked;
@@ -208,7 +208,6 @@ app.post('/admin/user/:id/lock', async (req, res) => {
   res.send('✅ Đã thay đổi trạng thái khóa');
 });
 
-// ✅ API cộng tiền
 app.post('/admin/user/:id/balance', async (req, res) => {
   const { amount } = req.body;
   const user = await User.findById(req.params.id);
@@ -217,16 +216,15 @@ app.post('/admin/user/:id/balance', async (req, res) => {
   res.send('✅ Đã cộng tiền');
 });
 
-// ✅ API xóa tài khoản
 app.delete('/admin/user/:id', async (req, res) => {
   await User.findByIdAndDelete(req.params.id);
   res.send('✅ Đã xóa tài khoản');
 });
 
-// ✅ Phục vụ file tĩnh
+// ✅ File tĩnh
 app.use(express.static(path.join(__dirname, '/')));
 
-// ✅ Khởi chạy server
+// ✅ Chạy server
 app.listen(3000, () => {
   console.log('🚀 Server đang chạy tại http://localhost:3000');
 });
