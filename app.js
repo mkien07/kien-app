@@ -264,6 +264,7 @@ app.post('/withdraw', async (req, res) => {
 // =========================================
 app.get('/admin/withdraws', async (req, res) => {
   const u = req.session.user;
+  // ✅ Cho phép admin, qtv, adminwith xem danh sách để không lỗi data.html
   if (!u || !['admin', 'qtv', 'adminwith'].includes(u.role)) {
     return res.status(403).send('❌ Không có quyền');
   }
