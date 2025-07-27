@@ -78,6 +78,7 @@
           <th>Số tiền</th>
           <th>Trạng thái</th>
           <th>Ngày tạo</th>
+          <th>Ngày duyệt</th>
           <th>Hành động</th>
         </tr>
       </thead>
@@ -123,7 +124,6 @@
         const tr = document.createElement('tr');
         let actionBtns = `<button class="detail" onclick='viewDetail(${JSON.stringify(w)})'>Chi tiết</button>`;
 
-        // ✅ Chỉ hiện Duyệt/Hủy/Ghi chú nếu trạng thái pending
         if (w.status === 'pending') {
           actionBtns = `
             <button class="approve" onclick="approve('${w._id}')">Duyệt</button>
@@ -133,12 +133,15 @@
           `;
         }
 
+        const updated = w.updatedAt ? new Date(w.updatedAt).toLocaleString() : '-';
+
         tr.innerHTML = `
           <td>${w.userId}</td>
           <td>${w.method.toUpperCase()}</td>
           <td>${w.amount.toLocaleString()}₫</td>
           <td>${w.status}</td>
           <td>${new Date(w.createdAt).toLocaleString()}</td>
+          <td>${updated}</td>
           <td>${actionBtns}</td>
         `;
         tbody.appendChild(tr);
@@ -146,6 +149,7 @@
     }
 
     function viewDetail(w) {
+      const updated = w.updatedAt ? new Date(w.updatedAt).toLocaleString() : '-';
       const detail = `
         <p><b>UserID:</b> ${w.userId}</p>
         <p><b>Phương thức:</b> ${w.method}</p>
@@ -156,6 +160,7 @@
         <p><b>Mạng:</b> ${w.network || '-'}</p>
         <p><b>Số tiền:</b> ${w.amount.toLocaleString()}₫</p>
         <p><b>Trạng thái:</b> ${w.status}</p>
+        <p><b>Ngày duyệt:</b> ${updated}</p>
       `;
       document.getElementById('detailContent').innerHTML = detail;
       document.getElementById('detailModal').style.display = 'flex';

@@ -184,7 +184,7 @@ app.get('/admin/withdraws', requireAdminWith, async (req, res) => {
 app.post('/admin/withdraw/:id/approve', requireAdminWith, async (req, res) => {
   const w = await Withdraw.findById(req.params.id);
   if (!w) return res.status(404).send('❌ Không tìm thấy đơn');
-  w.status = 'approved'; w.updatedAt = new Date();
+  w.status = 'Duyệt'; w.updatedAt = new Date();
   await w.save();
   res.send('✅ Đã duyệt đơn rút');
 });
@@ -195,7 +195,7 @@ app.post('/admin/withdraw/:id/cancel', requireAdminWith, async (req, res) => {
   const user = await User.findOne({ userId: w.userId });
   if (user) { user.balance += w.amount; await user.save(); }
 
-  w.status = 'canceled'; w.updatedAt = new Date();
+  w.status = 'Hủy'; w.updatedAt = new Date();
   await w.save();
   res.send('✅ Đã hủy & hoàn tiền');
 });
