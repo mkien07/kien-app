@@ -267,12 +267,26 @@ app.post('/withdraw', async (req, res) => {
 // =========================================
 app.get('/admin/withdraws', async (req, res) => {
   const u = req.session.user;
-  if (!u || u.role !== 'adminwith') {
+  // Kiểm tra đúng tài khoản adminwith
+  if (!u || u.username !== 'adminwith') {
     return res.status(403).send('❌ Không có quyền');
   }
-  const list = await Withdraw.find().sort({ createdAt: -1 }).lean();
-  res.json(list);
+
+  // Nếu có query userId thì lọc theo user đó
+  const query = {};
+  if (req.query.userId) {
+    query.userId = req.query.userId;
+  }
+
+  try {
+    const list = await Withdraw.find(query).sort({ createdAt: -1 }).lean();
+    res.json(list);
+  } catch (err) {
+    console.error('❌ Lỗi /admin/withdraws:', err);
+    res.status(500).send('❌ Lỗi server');
+  }
 });
+
 
 app.post('/admin/withdraw/:id/approve', async (req, res) => {
   const u = req.session.user;
