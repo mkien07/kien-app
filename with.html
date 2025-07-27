@@ -2,106 +2,214 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Danh sách đơn rút</title>
+  <title>Quản lý đơn rút</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: Arial, sans-serif; background:#f5f7fa; padding:20px; margin:0; }
-    table { width:100%; border-collapse:collapse; background:#fff; border-radius:6px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
-    th, td { padding:10px; border:1px solid #eee; text-align:center; font-size:14px; }
-    th { background:#2196f3; color:#fff; }
-    .pending { color:#ff9800; font-weight:bold; }
-    .approved { color:#4caf50; font-weight:bold; }
-    .canceled { color:#f44336; font-weight:bold; }
-    button { padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
-    .approve { background:#4caf50; color:#fff; margin:2px; }
-    .cancel { background:#f44336; color:#fff; margin:2px; }
+    .status-pending { color:#f59e0b; font-weight:600; }
+    .status-approved { color:#10b981; font-weight:600; }
+    .status-canceled { color:#ef4444; font-weight:600; }
+    .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:50; }
+    .modal.show { display:flex; }
   </style>
 </head>
-<body>
+<body class="bg-gray-100 p-4">
 
-  <table>
-    <thead>
-      <tr>
-        <th>UID</th>
-        <th>Phương thức</th>
-        <th>Số tiền</th>
-        <th>Thông tin thanh toán</th>
-        <th>Thời gian</th>
-        <th>Trạng thái</th>
-        <th>Hành động</th>
-      </tr>
-    </thead>
-    <tbody id="withdraw-table">
-      <tr><td colspan="7">Đang tải...</td></tr>
-    </tbody>
-  </table>
+  <div class="max-w-7xl mx-auto bg-white rounded-lg shadow p-4">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold">📋 Danh sách đơn rút</h2>
+      <input id="search" type="text" placeholder="Tìm UID..." class="border rounded px-3 py-1 w-64">
+    </div>
 
-  <script>
-    async function loadWithdraws() {
-      const res = await fetch('/admin/withdraws');
-      const tbody = document.getElementById('withdraw-table');
+    <div class="flex space-x-2 mb-3">
+      <button class="filter bg-blue-500 text-white px-3 py-1 rounded" data-status="">Tất cả</button>
+      <button class="filter bg-yellow-400 px-3 py-1 rounded" data-status="pending">Pending</button>
+      <button class="filter bg-green-500 text-white px-3 py-1 rounded" data-status="approved">Approved</button>
+      <button class="filter bg-red-500 text-white px-3 py-1 rounded" data-status="canceled">Canceled</button>
+    </div>
 
-      if (!res.ok) {
-        tbody.innerHTML = '<tr><td colspan="7">❌ Không thể tải dữ liệu</td></tr>';
-        return;
-      }
+    <div id="stats" class="mb-3 text-sm text-gray-600"></div>
 
-      let list;
-      try {
-        list = await res.json();
-      } catch (e) {
-        console.error('❌ Lỗi parse JSON:', e);
-        tbody.innerHTML = '<tr><td colspan="7">❌ Dữ liệu lỗi</td></tr>';
-        return;
-      }
+    <div class="overflow-x-auto">
+      <table class="w-full border text-sm">
+        <thead class="bg-blue-600 text-white">
+          <tr>
+            <th class="px-2 py-1">UID</th>
+            <th class="px-2 py-1">Phương thức</th>
+            <th class="px-2 py-1">Số tiền</th>
+            <th class="px-2 py-1">Thông tin</th>
+            <th class="px-2 py-1">Thời gian</th>
+            <th class="px-2 py-1">Trạng thái</th>
+            <th class="px-2 py-1">Hành động</th>
+          </tr>
+        </thead>
+        <tbody id="withdraw-table">
+          <tr><td colspan="7" class="p-2 text-center">Đang tải...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-      console.log('📥 Dữ liệu đơn rút:', list); // debug
+  <!-- Modal thông báo -->
+  <div id="notifyModal" class="modal">
+    <div class="bg-white rounded-lg p-6 w-80 text-center">
+      <p id="notifyText" class="mb-4 text-lg font-medium"></p>
+      <button onclick="closeNotify()" class="bg-blue-500 text-white px-4 py-1 rounded">Đóng</button>
+    </div>
+  </div>
 
-      if (!list || !Array.isArray(list) || list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7">Không có đơn rút nào</td></tr>';
-        return;
-      }
+  <!-- Modal lịch sử rút -->
+  <div id="historyModal" class="modal">
+    <div class="bg-white rounded-lg p-4 max-w-lg w-full max-h-[80vh] overflow-auto">
+      <div class="flex justify-between items-center mb-2">
+        <h3 class="font-bold">Lịch sử rút tiền</h3>
+        <button onclick="closeHistory()" class="text-red-500">✕</button>
+      </div>
+      <div id="historyContent" class="text-sm"></div>
+    </div>
+  </div>
 
-      tbody.innerHTML = '';
+<script>
+let allData = [];
+let currentFilter = '';
 
-      list.forEach(w => {
-        const tr = document.createElement('tr');
-        const info = w.method === 'bank'
-          ? `${w.accountName} - ${w.accountNumber} (${w.bankName})`
-          : `${w.usdtAddress} (${w.network})`;
+async function loadWithdraws() {
+  const res = await fetch('/admin/withdraws');
+  const tbody = document.getElementById('withdraw-table');
+  if (!res.ok) {
+    tbody.innerHTML = '<tr><td colspan="7" class="p-2 text-center">❌ Lỗi tải dữ liệu</td></tr>';
+    return;
+  }
+  allData = await res.json();
+  renderTable();
+  updateStats();
+}
 
-        const amount = Number(w.amount) || 0;
+function renderTable() {
+  const searchVal = document.getElementById('search').value.toLowerCase();
+  const tbody = document.getElementById('withdraw-table');
+  let data = allData;
 
-        tr.innerHTML = `
-          <td>${w.userId}</td>
-          <td>${(w.method || '').toUpperCase()}</td>
-          <td>${amount.toLocaleString()}₫</td>
-          <td>${info}</td>
-          <td>${new Date(w.createdAt).toLocaleString()}</td>
-          <td class="${w.status}">${w.status}</td>
-          <td>
-            ${w.status === 'pending'
-              ? `<button class="approve" onclick="approve('${w._id}')">Duyệt</button>
-                 <button class="cancel" onclick="cancel('${w._id}')">Hủy</button>`
-              : '—'}
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
+  if (currentFilter) {
+    data = data.filter(w => w.status === currentFilter);
+  }
 
-    async function approve(id) {
-      if (!confirm('Duyệt đơn này?')) return;
-      const res = await fetch(`/admin/withdraw/${id}/approve`, { method:'POST' });
-      if (res.ok) loadWithdraws(); else alert('❌ Lỗi duyệt đơn');
-    }
+  if (searchVal) {
+    data = data.filter(w => w.userId.toLowerCase().includes(searchVal));
+  }
 
-    async function cancel(id) {
-      if (!confirm('Hủy đơn này và hoàn tiền?')) return;
-      const res = await fetch(`/admin/withdraw/${id}/cancel`, { method:'POST' });
-      if (res.ok) loadWithdraws(); else alert('❌ Lỗi hủy đơn');
-    }
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="p-2 text-center">Không có đơn nào</td></tr>';
+    return;
+  }
 
+  tbody.innerHTML = '';
+  data.forEach(w => {
+    const info = w.method === 'bank'
+      ? `${w.accountName} - ${w.accountNumber} (${w.bankName})`
+      : `${w.usdtAddress} (${w.network})`;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="text-blue-600 cursor-pointer" onclick="showHistory('${w.userId}')">${w.userId}</td>
+      <td>${w.method.toUpperCase()}</td>
+      <td>${Number(w.amount).toLocaleString()}₫</td>
+      <td>${info}</td>
+      <td>${new Date(w.createdAt).toLocaleString()}</td>
+      <td class="status-${w.status}">${w.status}</td>
+      <td>
+        ${w.status === 'pending'
+          ? `<button class="bg-green-500 text-white px-2 py-1 rounded" onclick="approve('${w._id}')">Duyệt</button>
+             <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="cancel('${w._id}')">Hủy</button>`
+          : '—'}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function updateStats() {
+  const total = allData.length;
+  const pending = allData.filter(x=>x.status==='pending').length;
+  const approved = allData.filter(x=>x.status==='approved').length;
+  const sum = allData.reduce((a,b)=>a+Number(b.amount),0);
+  document.getElementById('stats').innerText =
+    `Tổng: ${total} đơn | Pending: ${pending} | Approved: ${approved} | Tổng số tiền: ${sum.toLocaleString()}₫`;
+}
+
+async function approve(id) {
+  const res = await fetch(`/admin/withdraw/${id}/approve`, { method:'POST' });
+  if (res.ok) {
+    showNotify('✅ Đã duyệt đơn');
     loadWithdraws();
-  </script>
+  } else showNotify('❌ Lỗi duyệt đơn');
+}
+
+async function cancel(id) {
+  const res = await fetch(`/admin/withdraw/${id}/cancel`, { method:'POST' });
+  if (res.ok) {
+    showNotify('✅ Đã hủy đơn và hoàn tiền');
+    loadWithdraws();
+  } else showNotify('❌ Lỗi hủy đơn');
+}
+
+function showNotify(msg) {
+  document.getElementById('notifyText').innerText = msg;
+  document.getElementById('notifyModal').classList.add('show');
+}
+function closeNotify() {
+  document.getElementById('notifyModal').classList.remove('show');
+}
+
+async function showHistory(userId) {
+  const modal = document.getElementById('historyModal');
+  const content = document.getElementById('historyContent');
+  modal.classList.add('show');
+  content.innerHTML = 'Đang tải...';
+
+  const res = await fetch(`/admin/withdraws?userId=${userId}`);
+  const list = await res.json();
+
+  if (!list.length) {
+    content.innerHTML = '<p>Không có lịch sử rút tiền</p>';
+    return;
+  }
+
+  const total = list.reduce((sum, x) => sum + Number(x.amount), 0);
+  const pending = list.filter(x=>x.status==='pending').length;
+  const approved = list.filter(x=>x.status==='approved').length;
+  const canceled = list.filter(x=>x.status==='canceled').length;
+
+  const summary = `
+    <div class="mb-2 p-2 bg-gray-100 rounded">
+      <b>Tổng số đơn:</b> ${list.length} | 
+      <b>Pending:</b> ${pending} | 
+      <b>Approved:</b> ${approved} | 
+      <b>Canceled:</b> ${canceled} |
+      <b>Tổng tiền:</b> ${total.toLocaleString()}₫
+    </div>
+  `;
+
+  content.innerHTML = summary + list.map(w => `
+    <div class="border-b py-1">
+      <b>${Number(w.amount).toLocaleString()}₫</b> - ${w.status} - ${new Date(w.createdAt).toLocaleString()}
+    </div>
+  `).join('');
+}
+
+function closeHistory() {
+  document.getElementById('historyModal').classList.remove('show');
+}
+
+document.getElementById('search').addEventListener('input', renderTable);
+document.querySelectorAll('.filter').forEach(btn=>{
+  btn.addEventListener('click', ()=> {
+    currentFilter = btn.dataset.status;
+    renderTable();
+  });
+});
+
+loadWithdraws();
+setInterval(loadWithdraws, 30000);
+</script>
 </body>
 </html>
