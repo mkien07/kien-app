@@ -169,7 +169,7 @@
 
       <div class="input-group">
         <i class="material-icons">attach_money</i>
-        <input id="amountInput" type="number" name="amount" placeholder="Số tiền muốn rút" min="50000" required>
+        <input id="amountInput" type="number" name="amount" placeholder="Số tiền muốn rút" min="1" required>
       </div>
 
       <button id="btnWithdraw" class="btn-withdraw" type="submit" disabled>Rút ngay</button>
@@ -203,7 +203,7 @@
     }
 
     function validate(balance, amount) {
-      const ok = balance >= 50000 && amount >= 50000 && amount <= balance;
+      const ok = balance >= 1 && amount >= 1 && amount <= balance;
       btnWithdraw.disabled = !ok;
     }
 

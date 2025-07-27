@@ -145,7 +145,7 @@ app.post('/withdraw', async (req, res) => {
   if (!user) return res.status(404).send('❌ Không tìm thấy user');
 
   const amt = Number(amount);
-  if (amt < 50000) return res.status(400).send('⚠️ Tối thiểu 50.000₫');
+  if (amt < 1) return res.status(400).send('⚠️ Tối thiểu 1₫');
   if (user.balance < amt) return res.status(400).send('⚠️ Số dư không đủ');
 
   user.balance -= amt;
