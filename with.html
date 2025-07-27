@@ -121,18 +121,25 @@
       tbody.innerHTML = '';
       data.forEach(w => {
         const tr = document.createElement('tr');
+        let actionBtns = `<button class="detail" onclick='viewDetail(${JSON.stringify(w)})'>Chi tiết</button>`;
+
+        // ✅ Chỉ hiện Duyệt/Hủy/Ghi chú nếu trạng thái pending
+        if (w.status === 'pending') {
+          actionBtns = `
+            <button class="approve" onclick="approve('${w._id}')">Duyệt</button>
+            <button class="cancel" onclick="cancel('${w._id}')">Hủy</button>
+            <button class="detail" onclick='viewDetail(${JSON.stringify(w)})'>Chi tiết</button>
+            <button class="note" onclick="openNote('${w._id}')">Ghi chú</button>
+          `;
+        }
+
         tr.innerHTML = `
           <td>${w.userId}</td>
           <td>${w.method.toUpperCase()}</td>
           <td>${w.amount.toLocaleString()}₫</td>
           <td>${w.status}</td>
           <td>${new Date(w.createdAt).toLocaleString()}</td>
-          <td>
-            <button class="approve" onclick="approve('${w._id}')">Duyệt</button>
-            <button class="cancel" onclick="cancel('${w._id}')">Hủy</button>
-            <button class="detail" onclick='viewDetail(${JSON.stringify(w)})'>Chi tiết</button>
-            <button class="note" onclick="openNote('${w._id}')">Ghi chú</button>
-          </td>
+          <td>${actionBtns}</td>
         `;
         tbody.appendChild(tr);
       });
