@@ -57,14 +57,14 @@ const User = mongoose.model('User', userSchema);
 
 const withdrawSchema = new mongoose.Schema({
   userId:        String,
-  method:        String,      // 'bank' or 'usdt'
+  method:        String,
   accountNumber: String,
   accountName:   String,
   bankName:      String,
   usdtAddress:   String,
   network:       String,
   amount:        Number,
-  status:        { type: String, default: 'pending' }, // pending|approved|canceled
+  status:        { type: String, default: 'pending' },
   createdAt:     { type: Date, default: Date.now },
   updatedAt:     Date
 });
@@ -119,7 +119,7 @@ app.post('/login', async (req, res) => {
     return res.redirect('/with.html');
   }
 
-  // Admin thường
+  // ✅ Admin thường
   if (username === 'admin' && password === 'maikien') {
     req.session.user = {
       username:'admin',
@@ -132,7 +132,7 @@ app.post('/login', async (req, res) => {
     return res.redirect('/data.html');
   }
 
-  // User thường
+  // ✅ User thường
   const user = await User.findOne({
     $or: [{ username }, { email: username }],
     password
@@ -193,7 +193,6 @@ app.get('/profile', async (req, res) => {
     const sUser = req.session.user;
     let user = await User.findOne({ userId: sUser.userId }).lean();
 
-    // Nếu admin (không có DB record) dùng luôn session
     if (!user && sUser.role === 'admin') {
       user = sUser;
       user.balance = user.balance || 0;
@@ -239,11 +238,9 @@ app.post('/withdraw', async (req, res) => {
       return res.status(400).send('⚠️ Số dư không đủ');
     }
 
-    // ✅ Trừ số dư ngay lập tức
     user.balance -= amt;
     await user.save();
 
-    // ✅ Tạo đơn rút
     const w = new Withdraw({
       userId:        user.userId,
       method:        bankName ? 'bank' : 'usdt',
@@ -254,7 +251,7 @@ app.post('/withdraw', async (req, res) => {
     await w.save();
 
     console.log(`💸 ${user.username} rút ${amt}₫ - số dư mới: ${user.balance}₫`);
-    res.json({ newBalance: user.balance }); // trả số dư mới
+    res.json({ newBalance: user.balance });
 
   } catch (err) {
     console.error('❌ Lỗi /withdraw:', err);
@@ -267,9 +264,7 @@ app.post('/withdraw', async (req, res) => {
 // =========================================
 app.get('/admin/withdraws', async (req, res) => {
   const u = req.session.user;
-
-  // Chỉ cho phép user có role admin hoặc qtv, hoặc username = adminwith
-  if (!u || (!['admin', 'qtv'].includes(u.role) && u.username !== 'adminwith')) {
+  if (!u || u.role !== 'adminwith') {
     return res.status(403).send('❌ Không có quyền');
   }
 
@@ -286,7 +281,6 @@ app.get('/admin/withdraws', async (req, res) => {
     res.status(500).send('❌ Lỗi server');
   }
 });
-
 
 app.post('/admin/withdraw/:id/approve', async (req, res) => {
   const u = req.session.user;
@@ -309,7 +303,6 @@ app.post('/admin/withdraw/:id/cancel', async (req, res) => {
   const w = await Withdraw.findById(req.params.id);
   if (!w) return res.status(404).send('❌ Không tìm thấy đơn');
 
-  // ✅ Cộng tiền lại cho user
   const user = await User.findOne({ userId: w.userId });
   if (user) {
     user.balance += w.amount;
