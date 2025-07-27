@@ -7,7 +7,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <style>
-    /* Reset & Body */
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
       font-family: 'Poppins', sans-serif;
@@ -22,8 +21,6 @@
       50%{background-position:100% 50%;}
       100%{background-position:0% 50%;}
     }
-
-    /* Bubbles */
     .bubbles { position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; overflow:hidden; }
     .bubble {
       position:absolute; bottom:-100px;
@@ -33,29 +30,22 @@
     @keyframes rise {0%{transform:translateY(0);opacity:0;}50%{opacity:1;}100%{transform:translateY(-120vh);opacity:0;}}
     @keyframes sway {0%,100%{transform:translateX(0);}50%{transform:translateX(20px);}}
 
-    /* Container */
     .container {
       max-width:400px; margin:40px auto; background:rgba(255,255,255,0.6);
       backdrop-filter:blur(12px); border-radius:16px;
       box-shadow:0 8px 32px rgba(0,0,0,0.1); padding-bottom:20px;
     }
-
-    /* Header */
     .header { display:flex;justify-content:space-between;align-items:center;padding:16px; }
     .header .icon { font-size:24px; cursor:pointer; color:#333; }
     .title { font-size:18px; font-weight:600; }
 
-    /* Balance */
     .balance {
       text-align:center; background:linear-gradient(135deg,#4facfe,#00f2fe);
       color:#fff; padding:20px;
     }
-    .balance small {
-      font-size:12px; opacity:.8; display:block;
-    }
+    .balance small { font-size:12px; opacity:.8; display:block; }
     .balance #balance { font-size:28px; font-weight:600; }
 
-    /* Tabs */
     .tabs { display:flex; margin:16px; background:#eef3f8; border-radius:50px; overflow:hidden; }
     .tab {
       flex:1; text-align:center; padding:10px 0; cursor:pointer;
@@ -67,7 +57,6 @@
       box-shadow:0 4px 12px rgba(0,0,0,0.1);
     }
 
-    /* Form */
     .form { padding:0 16px; position:relative; }
     .input-group { position:relative; margin-top:16px; }
     .input-group .material-icons {
@@ -87,7 +76,6 @@
       box-shadow:0 0 8px rgba(79,172,254,0.6);
     }
 
-    /* Button */
     .btn-withdraw {
       position:relative; overflow:hidden;
       width:100%; padding:14px; margin-top:20px;
@@ -97,13 +85,10 @@
       transition:opacity .2s, transform .2s;
     }
     .btn-withdraw:disabled { opacity:.5; cursor:not-allowed; }
-    .btn-withdraw:hover:not(:disabled) {
-      transform:scale(1.02);
-    }
+    .btn-withdraw:hover:not(:disabled) { transform:scale(1.02); }
 
     .note { text-align:center; font-size:12px; color:#555; margin-top:16px; }
 
-    /* Modal */
     .modal {
       position:fixed; top:0; left:0; width:100%; height:100%;
       background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center;
@@ -194,7 +179,7 @@
 
   <div id="successModal" class="modal">
     <div class="modal-content">
-      <p>Rút tiền thành công!</p>
+      <p>💸 Rút tiền thành công!</p>
       <button onclick="closeModal()">Đóng</button>
     </div>
   </div>
@@ -205,7 +190,6 @@
     const amountInput = document.getElementById('amountInput');
     const btnWithdraw = document.getElementById('btnWithdraw');
 
-    // Load số dư
     async function loadBalance() {
       try {
         const res  = await fetch('/profile');
@@ -218,13 +202,11 @@
       }
     }
 
-    // Validate số dư & amount
     function validate(balance, amount) {
       const ok = balance >= 50000 && amount >= 50000 && amount <= balance;
       btnWithdraw.disabled = !ok;
     }
 
-    // Count-up animation
     function animateValue(el, start, end, duration) {
       let range = end - start, current = start, inc = range/(duration/16);
       (function step() {
@@ -240,7 +222,6 @@
     document.addEventListener('DOMContentLoaded', () => {
       loadBalance();
 
-      // Tab switch
       document.getElementById('tabBank').onclick = () => switchTab('bank');
       document.getElementById('tabUsdt').onclick = () => switchTab('usdt');
       function switchTab(type) {
@@ -250,14 +231,12 @@
         document.getElementById('usdtFields').style.display = type==='usdt'?'block':'none';
       }
 
-      // Input event
       amountInput.addEventListener('input', () => {
         const amt = parseFloat(amountInput.value) || 0;
         const bal = parseFloat(balanceEl.innerText.replace(/\D/g,'')) || 0;
         validate(bal, amt);
       });
 
-      // Submit
       document.getElementById('withdrawForm').addEventListener('submit', async e => {
         e.preventDefault();
         const payload = Object.fromEntries(new FormData(e.target));
@@ -265,27 +244,29 @@
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify(payload)
         });
+
         if (res.ok) {
-          // update số dư với count-up
-          const user = await res.json(); // trả về { newBalance }
-          animateValue(balanceEl,
-            parseFloat(balanceEl.innerText.replace(/\D/g,'')),
-            user.newBalance, 800);
-          // popup + confetti
+          // Hiện thông báo + hiệu ứng
           const modal = document.getElementById('successModal');
           modal.classList.add('show');
-          confetti({ particleCount:100, spread:70, origin:{y:0.6} });
+          confetti({ particleCount:120, spread:80, origin:{y:0.7} });
+
+          // Cập nhật số dư mới
+          const prof = await fetch('/profile');
+          const user = await prof.json();
+          const current = parseFloat(balanceEl.innerText.replace(/\D/g,'')) || 0;
+          animateValue(balanceEl, current, user.balance, 800);
+
           e.target.reset();
           btnWithdraw.disabled = true;
         } else {
-          alert('Rút thất bại');
+          alert('Rút thất bại, vui lòng thử lại.');
         }
       });
     });
 
     function closeModal(){
-      const m = document.getElementById('successModal');
-      m.classList.remove('show');
+      document.getElementById('successModal').classList.remove('show');
     }
   </script>
 </body>
