@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Quản lý đơn rút</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: Arial, sans-serif; background:#f5f7fb; margin:0; padding:0; }
+    header { background:#2196f3; color:#fff; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; }
+    header h2 { margin:0; font-size:20px; }
+    .container { max-width:1200px; margin:30px auto; background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.05); }
+
+    table { width:100%; border-collapse: collapse; margin-top:20px; font-size:14px; }
+    th, td { border:1px solid #ddd; padding:8px; text-align:center; }
+    th { background:#2196f3; color:#fff; }
+
+    button { padding:6px 12px; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
+    .approve { background:#4caf50; color:#fff; }
+    .cancel { background:#f44336; color:#fff; }
+    .pending { color:#ff9800; font-weight:bold; }
+    .approved { color:#4caf50; font-weight:bold; }
+    .canceled { color:#f44336; font-weight:bold; }
+
+    .info-btn { background:#2196f3; color:#fff; padding:4px 8px; border-radius:4px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>📋 Quản lý đơn rút</h2>
+    <a href="/logout"><button style="background:#f44336;color:#fff;">Đăng xuất</button></a>
+  </header>
+
+  <div class="container">
+    <table>
+      <thead>
+        <tr>
+          <th>UserID</th>
+          <th>Phương thức</th>
+          <th>Số tiền</th>
+          <th>Thông tin thanh toán</th>
+          <th>Thời gian</th>
+          <th>Trạng thái</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody id="withdraw-table">
+        <tr><td colspan="7">Đang tải...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    async function loadWithdraws() {
+      const res = await fetch('/admin/withdraws');
+      const tbody = document.getElementById('withdraw-table');
+      if (!res.ok) {
+        tbody.innerHTML = '<tr><td colspan="7">❌ Không thể tải dữ liệu</td></tr>';
+        return;
+      }
+      const list = await res.json();
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="7">Không có đơn rút nào</td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+
+      list.forEach(w => {
+        const tr = document.createElement('tr');
+        const info = w.method === 'bank'
+          ? `${w.accountName} - ${w.accountNumber} (${w.bankName})`
+          : `${w.usdtAddress} (${w.network})`;
+
+        tr.innerHTML = `
+          <td>${w.userId}</td>
+          <td>${w.method.toUpperCase()}</td>
+          <td>${w.amount.toLocaleString()}₫</td>
+          <td>${info}</td>
+          <td>${new Date(w.createdAt).toLocaleString()}</td>
+          <td class="${w.status}">${w.status}</td>
+          <td>
+            ${w.status === 'pending'
+              ? `<button class="approve" onclick="approve('${w._id}')">Duyệt</button>
+                 <button class="cancel" onclick="cancel('${w._id}')">Hủy</button>`
+              : '—'}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function approve(id) {
+      if (!confirm('Duyệt đơn này?')) return;
+      const res = await fetch(`/admin/withdraw/${id}/approve`, { method:'POST' });
+      if (res.ok) loadWithdraws(); else alert('❌ Lỗi duyệt đơn');
+    }
+
+    async function cancel(id) {
+      if (!confirm('Hủy đơn này và hoàn tiền?')) return;
+      const res = await fetch(`/admin/withdraw/${id}/cancel`, { method:'POST' });
+      if (res.ok) loadWithdraws(); else alert('❌ Lỗi hủy đơn');
+    }
+
+    loadWithdraws();
+  </script>
+</body>
+</html>
