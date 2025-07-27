@@ -213,23 +213,46 @@ app.post('/withdraw', async (req, res) => {
     return res.status(401).send('❌ Chưa đăng nhập');
   }
 
-  const {
-    accountNumber, accountName, bankName,
-    usdtAddress, network, amount
-  } = req.body;
+  try {
+    const {
+      accountNumber, accountName, bankName,
+      usdtAddress, network, amount
+    } = req.body;
 
-  // Tạo đơn, tính phí & số tiền thực nhận sẽ làm sau
-  const w = new Withdraw({
-    userId:        req.session.user.userId,
-    method:        bankName ? 'bank' : 'usdt',
-    accountNumber, accountName, bankName,
-    usdtAddress,   network,
-    amount:        Number(amount)
-  });
-  await w.save();
+    const user = await User.findOne({ userId: req.session.user.userId });
+    if (!user) return res.status(404).send('❌ Không tìm thấy user');
 
-  res.send('✅ Yêu cầu rút tiền đã gửi');
+    const amt = Number(amount);
+    if (amt < 50000) {
+      return res.status(400).send('⚠️ Số tiền tối thiểu là 50.000₫');
+    }
+    if (user.balance < amt) {
+      return res.status(400).send('⚠️ Số dư không đủ');
+    }
+
+    // ✅ Trừ số dư ngay lập tức
+    user.balance -= amt;
+    await user.save();
+
+    // ✅ Tạo đơn rút cho admin duyệt
+    const w = new Withdraw({
+      userId:        user.userId,
+      method:        bankName ? 'bank' : 'usdt',
+      accountNumber, accountName, bankName,
+      usdtAddress,   network,
+      amount:        amt
+    });
+    await w.save();
+
+    console.log(`💸 ${user.username} rút ${amt}₫ - số dư mới: ${user.balance}₫`);
+    res.json({ newBalance: user.balance }); // ✅ trả số dư mới cho frontend
+
+  } catch (err) {
+    console.error('❌ Lỗi /withdraw:', err);
+    res.status(500).send('❌ Lỗi server');
+  }
 });
+
 
 // ========================================
 // 📋 API: USER MANAGEMENT (admin/qtv)
