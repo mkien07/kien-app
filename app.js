@@ -264,7 +264,7 @@ app.post('/withdraw', async (req, res) => {
 // =========================================
 app.get('/admin/withdraws', async (req, res) => {
   const u = req.session.user;
-  if (!u || u.role !== 'adminwith') {
+  if (!u || !['admin', 'qtv', 'adminwith'].includes(u.role)) {
     return res.status(403).send('❌ Không có quyền');
   }
 
