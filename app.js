@@ -6,7 +6,7 @@ const path = require('path');
 const app = express();
 app.set('trust proxy', true);
 
-// ✅ Kết nối MongoDB
+// 🔗 Kết nối MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true, useUnifiedTopology: true
 })
@@ -23,7 +23,7 @@ app.use(session({
 }));
 
 // =====================
-// MODELS
+// MODELS (User, Withdraw, Deposit)
 // =====================
 const userSchema = new mongoose.Schema({
   userId: String,
@@ -60,12 +60,11 @@ const withdrawSchema = new mongoose.Schema({
 });
 const Withdraw = mongoose.model('Withdraw', withdrawSchema);
 
-// ✅ Model Deposit
 const depositSchema = new mongoose.Schema({
   userId: String,
   amount: Number,
   note: String,
-  status: { type: String, default: 'approved' }, // luôn thành công vì admin cộng
+  status: { type: String, default: 'approved' },
   createdAt: { type: Date, default: Date.now }
 });
 const Deposit = mongoose.model('Deposit', depositSchema);
@@ -93,8 +92,8 @@ function requireAdminWith(req, res, next) {
 // ROUTES
 // =====================
 app.get('/menu.html', requireLogin);
-app.get('/rut.html', requireLogin);
-app.get('/data.html', requireRole(['admin', 'qtv']));
+app.get('/rut.html',  requireLogin);
+app.get('/data.html', requireRole(['admin','qtv']));
 app.get('/with.html', requireAdminWith);
 
 app.get('/reg.html', (req, res, next) => {
@@ -109,19 +108,16 @@ app.post('/login', async (req, res) => {
     req.session.user = { username: 'adminwith', role: 'adminwith' };
     return res.redirect('/with.html');
   }
-
   if (username === 'admin' && password === 'maikien') {
     req.session.user = { username: 'admin', role: 'admin' };
     return res.redirect('/data.html');
   }
 
-  const user = await User.findOne({
-    $or: [{ username }, { email: username }], password
-  });
+  const user = await User.findOne({ $or:[{username},{email:username}], password });
   if (!user || user.locked) return res.status(401).send('Sai tài khoản');
 
   user.lastLogin = new Date();
-  user.ipLogin = req.ip;
+  user.ipLogin   = req.ip;
   user.userAgent = req.headers['user-agent'];
   await user.save();
 
@@ -132,10 +128,9 @@ app.post('/login', async (req, res) => {
 // REGISTER
 app.post('/register', async (req, res) => {
   const { username, email, phone, password } = req.body;
-  if (await User.findOne({ $or: [{ username }, { email }] })) {
+  if (await User.findOne({ $or:[{username},{email}] })) {
     return res.status(409).send('Tên hoặc email đã tồn tại');
   }
-
   const now = new Date();
   const newUser = new User({
     userId: Math.floor(100000 + Math.random() * 900000).toString(),
@@ -145,7 +140,6 @@ app.post('/register', async (req, res) => {
     userAgent: req.headers['user-agent']
   });
   await newUser.save();
-
   req.session.user = newUser;
   res.redirect('/menu.html');
 });
@@ -163,13 +157,12 @@ app.get('/profile', async (req, res) => {
 // CREATE WITHDRAW
 app.post('/withdraw', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Chưa đăng nhập');
-
   const { accountNumber, accountName, bankName, usdtAddress, network, amount } = req.body;
   const user = await User.findOne({ userId: req.session.user.userId });
   if (!user) return res.status(404).send('Không tìm thấy user');
 
   const amt = Number(amount);
-  if (amt < 50000) return res.status(400).send('Số tiền tối thiểu 50.000');
+  if (amt < 50000)      return res.status(400).send('Số tiền tối thiểu 50.000');
   if (user.balance < amt) return res.status(400).send('Số dư không đủ');
 
   user.balance -= amt;
@@ -182,69 +175,68 @@ app.post('/withdraw', async (req, res) => {
     usdtAddress, network, amount: amt
   });
   await w.save();
-
   res.json({ newBalance: user.balance });
 });
 
-// ✅ API: Lịch sử rút cho user
+// API: LỊCH SỬ RÚT
 app.get('/api/withdraws', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Chưa đăng nhập');
   const list = await Withdraw.find({ userId: req.session.user.userId })
-    .sort({ createdAt: -1 }).lean();
+                     .sort({ createdAt: -1 }).lean();
   res.json(list);
 });
 
-// ✅ API: Lịch sử nạp cho user
+// API: LỊCH SỬ NẠP
 app.get('/api/deposits', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Chưa đăng nhập');
   const list = await Deposit.find({ userId: req.session.user.userId })
-    .sort({ createdAt: -1 }).lean();
+                    .sort({ createdAt: -1 }).lean();
   res.json(list);
 });
 
-// ADMIN: Danh sách đơn rút
+// ADMINWITH: QUẢN LÝ RÚT
 app.get('/admin/withdraws', async (req, res) => {
   const u = req.session.user;
   if (!u || u.role !== 'adminwith') return res.status(403).send('Không có quyền');
   const list = await Withdraw.find().sort({ createdAt: -1 }).lean();
   res.json(list);
 });
-
-// ADMIN: Duyệt đơn rút
 app.post('/admin/withdraw/:id/approve', async (req, res) => {
   const u = req.session.user;
   if (!u || u.role !== 'adminwith') return res.status(403).send('Không có quyền');
   const w = await Withdraw.findById(req.params.id);
   if (!w) return res.status(404).send('Không tìm thấy đơn');
-
   w.status = 'approved';
-  w.note = req.body.note || '';
+  w.note   = req.body.note || '';
   w.updatedAt = new Date();
   await w.save();
   res.send('Đã duyệt đơn rút');
 });
-
-// ADMIN: Hủy đơn rút
 app.post('/admin/withdraw/:id/cancel', async (req, res) => {
   const u = req.session.user;
   if (!u || u.role !== 'adminwith') return res.status(403).send('Không có quyền');
   const w = await Withdraw.findById(req.params.id);
   if (!w) return res.status(404).send('Không tìm thấy đơn');
-
-  const user = await User.findOne({ userId: w.userId });
-  if (user) {
-    user.balance += w.amount;
-    await user.save();
+  const usr = await User.findOne({ userId: w.userId });
+  if (usr) {
+    usr.balance += w.amount; await usr.save();
   }
-
-  w.status = 'canceled';
-  w.note = req.body.note || '';
+  w.status    = 'canceled';
+  w.note      = req.body.note || '';
   w.updatedAt = new Date();
   await w.save();
   res.send('Đã hủy đơn rút & hoàn tiền');
 });
 
-// ✅ ADMIN: Update user & log nạp tiền
+// ADMIN USERS (data.html)
+app.get('/admin/users', async (req, res) => {
+  const u = req.session.user;
+  if (!u || !['admin','qtv'].includes(u.role)) return res.status(403).send('Không có quyền');
+  const users = await User.find().lean();
+  res.json(users);
+});
+
+// ADMIN: CẬP NHẬT USER & TỰ ĐỘNG LƯU LỊCH SỬ NẠP
 app.put('/admin/user/:userId', async (req, res) => {
   const u = req.session.user;
   if (!u || !['admin','qtv'].includes(u.role)) return res.status(403).send('Không có quyền');
@@ -252,18 +244,16 @@ app.put('/admin/user/:userId', async (req, res) => {
   const user = await User.findOne({ userId: req.params.userId });
   if (!user) return res.status(404).send('User không tồn tại');
 
-  const oldBalance = user.balance;
+  const oldBal = user.balance;
   const fields = ['email','password','balance','investment','vipLevel','locked','role'];
   fields.forEach(f => { if (req.body[f] !== undefined) user[f] = req.body[f]; });
-
   await user.save();
 
-  // ✅ Nếu cộng tiền thì log vào Deposit
-  if (req.body.balance !== undefined && req.body.balance > oldBalance) {
-    const amount = req.body.balance - oldBalance;
+  // Nếu admin tăng balance thì ghi lịch sử nạp
+  if (req.body.balance !== undefined && req. body.balance > oldBal) {
     await new Deposit({
       userId: user.userId,
-      amount: amount,
+      amount: req.body.balance - oldBal,
       note: 'Admin cộng tiền'
     }).save();
   }
@@ -271,9 +261,7 @@ app.put('/admin/user/:userId', async (req, res) => {
   res.send('Đã cập nhật user');
 });
 
-// =====================
 // STATIC FILES
-// =====================
 app.use(express.static(path.join(__dirname, '/')));
 
 const PORT = process.env.PORT || 3000;
