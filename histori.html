@@ -99,7 +99,7 @@
         <tr>
           <th>Người thao tác</th>
           <th>Hành động</th>
-          <th>UserID mục tiêu</th>
+          <th>UserID </th>
           <th>Thời gian</th>
           <th>Chi tiết</th>
         </tr>
@@ -152,7 +152,7 @@
       const detailHTML = `
         <p><b>Người thao tác:</b> ${log.actor}</p>
         <p><b>Hành động:</b> ${log.action}</p>
-        <p><b>UserID mục tiêu:</b> ${log.targetUserId || '-'}</p>
+        <p><b>UserID :</b> ${log.targetUserId || '-'}</p>
         <p><b>IP:</b> ${log.ip || '-'}</p>
         <p><b>Thiết bị:</b> ${log.userAgent || '-'}</p>
         <p><b>Thời gian:</b> ${new Date(log.createdAt).toLocaleString()}</p>
