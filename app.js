@@ -359,6 +359,28 @@ app.get('/admin/logs', async (req, res) => {
   const logs = await Log.find().sort({ createdAt: -1 }).lean();
   res.json(logs);
 });
+// ✅ API: Lấy danh sách user cho data.html
+app.get('/admin/users', async (req, res) => {
+  const u = req.session.user;
+  if (!u || !['admin','qtv'].includes(u.role)) return res.status(403).send('Không có quyền');
+  const users = await User.find().lean();
+  res.json(users);
+});
+// ✅ API: Lấy danh sách rút tiền cho with.html
+// ✅ API: Lấy danh sách tất cả yêu cầu rút cho with.html
+app.get('/api/admin/withdraws', async (req, res) => {
+  const u = req.session.user;
+  if (!u || u.role !== 'adminwith') return res.status(403).send('Không có quyền');
+
+  try {
+    const list = await Withdraw.find().sort({ createdAt: -1 }).lean();
+    res.json(list);
+  } catch (err) {
+    console.error('Lỗi lấy danh sách rút:', err);
+    res.status(500).send('Lỗi server');
+  }
+});
+
 
 // STATIC FILES
 app.use(express.static(path.join(__dirname, '/')));
