@@ -6,71 +6,129 @@
   <title>Lịch sử rút tiền</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
   <style>
+    /* Background tối giống menu.html */
     body {
       font-family: 'Poppins', sans-serif;
-      background: #f5f6fa;
+      background: linear-gradient(-45deg, #1b2735, #090a0f, #2c3e50, #000);
+      background-size: 400% 400%;
+      animation: gradientBG 20s ease infinite;
       margin: 0;
       padding: 20px;
+      min-height: 100vh;
+      color: #fff;
     }
+    @keyframes gradientBG {
+      0%{background-position:0% 50%;}
+      50%{background-position:100% 50%;}
+      100%{background-position:0% 50%;}
+    }
+
     h2 {
       text-align: center;
-      color: #333;
+      color: #f1f1f1;
       margin-bottom: 20px;
+      font-weight: 600;
     }
-    .table-container {
-      max-width: 600px;
+
+    .history-container {
+      max-width: 850px;
       margin: auto;
-      background: white;
+      background: rgba(30, 30, 30, 0.7);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
       padding: 15px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 30px rgba(0,0,0,0.4);
     }
+
     table {
       width: 100%;
       border-collapse: collapse;
     }
     th, td {
-      padding: 10px;
-      border-bottom: 1px solid #ddd;
+      padding: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
       text-align: center;
       font-size: 14px;
+      color: #f1f1f1;
     }
     th {
-      background: #2e86de;
-      color: white;
+      background: rgba(79,172,254,0.2);
+      color: #00f2fe;
     }
     tr:hover {
-      background: #f1f1f1;
+      background: rgba(255,255,255,0.05);
     }
-    .status-pending {
-      color: orange;
-      font-weight: 600;
+
+    /* Status badge */
+    .status-pending { color: #f39c12; font-weight: 600; }
+    .status-approved { color: #2ecc71; font-weight: 600; }
+    .status-canceled { color: #e74c3c; font-weight: 600; }
+
+    button.detail-btn {
+      background: #3498db;
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.3s;
     }
-    .status-approved {
-      color: green;
-      font-weight: 600;
+    button.detail-btn:hover {
+      background: #2980b9;
     }
-    .status-canceled {
-      color: red;
-      font-weight: 600;
+
+    /* Popup */
+    #detailModal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
     }
-    #search {
-      display: block;
-      margin: 10px auto 20px;
+    .modal-content {
+      background: #1e272e;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+      animation: fadeIn 0.3s ease;
+      color: #f1f1f1;
+    }
+    .modal-content h3 {
+      margin: 0 0 12px;
+      text-align: center;
+      color: #00f2fe;
+    }
+    .modal-content p {
+      font-size: 14px;
+      margin: 6px 0;
+      color: #ddd;
+    }
+    .close-btn {
+      background: #e74c3c;
+      color: white;
+      border: none;
       padding: 8px;
-      width: 250px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-family: inherit;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      width: 100%;
+      font-size: 14px;
+    }
+    @keyframes fadeIn {
+      from {opacity: 0; transform: translateY(-20px);}
+      to {opacity: 1; transform: translateY(0);}
     }
   </style>
 </head>
 <body>
 
   <h2>📜 Lịch sử rút tiền</h2>
-  <input type="text" id="search" placeholder="🔍 Tìm kiếm số tiền, trạng thái...">
-
-  <div class="table-container">
+  <div class="history-container">
     <table>
       <thead>
         <tr>
@@ -79,12 +137,22 @@
           <th>Trạng thái</th>
           <th>Thời gian tạo</th>
           <th>Thời gian duyệt</th>
+          <th>Chi tiết</th>
         </tr>
       </thead>
       <tbody id="withdrawBody">
-        <tr><td colspan="5">Đang tải...</td></tr>
+        <tr><td colspan="6">Đang tải...</td></tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- Popup chi tiết -->
+  <div id="detailModal">
+    <div class="modal-content">
+      <h3>Chi tiết rút tiền</h3>
+      <div id="detailContent"></div>
+      <button class="close-btn" onclick="closeModal()">Đóng</button>
+    </div>
   </div>
 
   <script>
@@ -97,7 +165,7 @@
         renderTable(withdraws);
       } catch (err) {
         document.getElementById('withdrawBody').innerHTML =
-          '<tr><td colspan="5">Lỗi tải dữ liệu</td></tr>';
+          '<tr><td colspan="6">Lỗi tải dữ liệu</td></tr>';
       }
     }
 
@@ -106,14 +174,12 @@
       tbody.innerHTML = '';
 
       if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5">Chưa có đơn rút nào</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6">Chưa có đơn rút nào</td></tr>';
         return;
       }
 
       data.forEach(w => {
-        const updated = w.updatedAt
-          ? new Date(w.updatedAt).toLocaleString()
-          : '-';
+        const updated = w.updatedAt ? new Date(w.updatedAt).toLocaleString() : '-';
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${w.amount.toLocaleString()}₫</td>
@@ -121,22 +187,34 @@
           <td class="status-${w.status}">${w.status}</td>
           <td>${new Date(w.createdAt).toLocaleString()}</td>
           <td>${updated}</td>
+          <td><button class="detail-btn" onclick='openDetail(${JSON.stringify(w)})'>Chi tiết</button></td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    document.getElementById('search').addEventListener('input', e => {
-      const kw = e.target.value.toLowerCase();
-      const filtered = withdraws.filter(w =>
-        w.amount.toString().includes(kw) ||
-        w.method.toLowerCase().includes(kw) ||
-        w.status.toLowerCase().includes(kw)
-      );
-      renderTable(filtered);
-    });
+    function openDetail(w) {
+      const content = `
+        <p><b>Số tiền:</b> ${w.amount.toLocaleString()}₫</p>
+        <p><b>Trạng thái:</b> ${w.status}</p>
+        <p><b>Phương thức:</b> ${w.method.toUpperCase()}</p>
+        <p><b>Số tài khoản:</b> ${w.accountNumber || '-'}</p>
+        <p><b>Chủ tài khoản:</b> ${w.accountName || '-'}</p>
+        <p><b>Ngân hàng:</b> ${w.bankName || '-'}</p>
+        <p><b>Địa chỉ USDT:</b> ${w.usdtAddress || '-'}</p>
+        <p><b>Network:</b> ${w.network || '-'}</p>
+        <p><b>Thời gian tạo:</b> ${new Date(w.createdAt).toLocaleString()}</p>
+        <p><b>Thời gian duyệt:</b> ${w.updatedAt ? new Date(w.updatedAt).toLocaleString() : '-'}</p>
+        <p><b>Ghi chú admin:</b> ${w.note || 'Không có'}</p>
+      `;
+      document.getElementById('detailContent').innerHTML = content;
+      document.getElementById('detailModal').style.display = 'flex';
+    }
 
-    // Khởi tạo
+    function closeModal() {
+      document.getElementById('detailModal').style.display = 'none';
+    }
+
     loadWithdraws();
   </script>
 </body>

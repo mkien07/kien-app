@@ -8,30 +8,133 @@
   <style>
     body {
       font-family: 'Poppins', sans-serif;
-      background: #f5f6fa; margin: 0; padding: 20px;
+      background: linear-gradient(-45deg, #1b2735, #090a0f, #2c3e50, #000);
+      background-size: 400% 400%;
+      animation: gradientBG 20s ease infinite;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      color: #fff;
     }
-    h2 { text-align: center; color: #333; margin-bottom: 20px; }
-    .table-container { max-width: 600px; margin: auto; background: white;
-      padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: center; font-size: 14px; }
-    th { background: #2e86de; color: white; }
-    .status-pending { color: orange; font-weight: 600; }
-    .status-success { color: green; font-weight: 600; }
-    .status-failed { color: red; font-weight: 600; }
+    @keyframes gradientBG {
+      0%{background-position:0% 50%;}
+      50%{background-position:100% 50%;}
+      100%{background-position:0% 50%;}
+    }
+
+    h2 {
+      text-align: center;
+      color: #f1f1f1;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .history-container {
+      max-width: 850px;
+      margin: auto;
+      background: rgba(30, 30, 30, 0.7);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 15px;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.4);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      text-align: center;
+      font-size: 14px;
+      color: #f1f1f1;
+    }
+    th {
+      background: rgba(79,172,254,0.2);
+      color: #00f2fe;
+    }
+    tr:hover {
+      background: rgba(255,255,255,0.05);
+    }
+
+    /* Status màu */
+    .status-pending { color: #f39c12; font-weight: 600; }
+    .status-approved { color: #2ecc71; font-weight: 600; }
+    .status-canceled { color: #e74c3c; font-weight: 600; }
+
+    button.detail-btn {
+      background: #3498db;
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.3s;
+    }
+    button.detail-btn:hover {
+      background: #2980b9;
+    }
+
+    /* Popup */
+    #detailModal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: #1e272e;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+      animation: fadeIn 0.3s ease;
+      color: #f1f1f1;
+    }
+    .modal-content h3 {
+      margin: 0 0 12px;
+      text-align: center;
+      color: #00f2fe;
+    }
+    .modal-content p {
+      font-size: 14px;
+      margin: 6px 0;
+      color: #ddd;
+    }
+    .close-btn {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      padding: 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      width: 100%;
+      font-size: 14px;
+    }
+    @keyframes fadeIn {
+      from {opacity: 0; transform: translateY(-20px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
   </style>
 </head>
 <body>
 
-  <h2>📜 Lịch sử nạp tiền</h2>
-  <div class="table-container">
+  <h2>💰 Lịch sử nạp tiền</h2>
+  <div class="history-container">
     <table>
       <thead>
         <tr>
           <th>Số tiền</th>
-          <th>Phương thức</th>
           <th>Trạng thái</th>
-          <th>Thời gian</th>
+          <th>Thời gian nạp</th>
+          <th>Chi tiết</th>
         </tr>
       </thead>
       <tbody id="depositBody">
@@ -40,32 +143,64 @@
     </table>
   </div>
 
+  <!-- Popup chi tiết -->
+  <div id="detailModal">
+    <div class="modal-content">
+      <h3>Chi tiết nạp tiền</h3>
+      <div id="detailContent"></div>
+      <button class="close-btn" onclick="closeModal()">Đóng</button>
+    </div>
+  </div>
+
   <script>
+    let deposits = [];
+
     async function loadDeposits() {
       try {
-        const res = await fetch('/api/deposits');
-        const data = await res.json();
-        const tbody = document.getElementById('depositBody');
-        tbody.innerHTML = '';
-
-        if (data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4">Chưa có giao dịch nạp nào</td></tr>';
-          return;
-        }
-
-        data.forEach(d => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${d.amount.toLocaleString()}₫</td>
-            <td>${d.method || 'Ngân hàng'}</td>
-            <td class="status-${d.status}">${d.status}</td>
-            <td>${new Date(d.createdAt).toLocaleString()}</td>
-          `;
-          tbody.appendChild(tr);
-        });
+        const res = await fetch('/api/deposits'); // API trả về lịch sử nạp riêng user
+        deposits = await res.json();
+        renderTable(deposits);
       } catch (err) {
-        document.getElementById('depositBody').innerHTML = '<tr><td colspan="4">Lỗi tải dữ liệu</td></tr>';
+        document.getElementById('depositBody').innerHTML =
+          '<tr><td colspan="4">Lỗi tải dữ liệu</td></tr>';
       }
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById('depositBody');
+      tbody.innerHTML = '';
+
+      if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4">Chưa có giao dịch nạp nào</td></tr>';
+        return;
+      }
+
+      data.forEach(d => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${d.amount.toLocaleString()}₫</td>
+          <td class="status-${d.status}">${d.status}</td>
+          <td>${new Date(d.createdAt).toLocaleString()}</td>
+          <td><button class="detail-btn" onclick='openDetail(${JSON.stringify(d)})'>Chi tiết</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openDetail(d) {
+      const content = `
+        <p><b>Số tiền:</b> ${d.amount.toLocaleString()}₫</p>
+        <p><b>Trạng thái:</b> ${d.status}</p>
+        <p><b>User ID:</b> ${d.userId}</p>
+        <p><b>Thời gian nạp:</b> ${new Date(d.createdAt).toLocaleString()}</p>
+        <p><b>Ghi chú admin:</b> ${d.note || 'Không có'}</p>
+      `;
+      document.getElementById('detailContent').innerHTML = content;
+      document.getElementById('detailModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('detailModal').style.display = 'none';
     }
 
     loadDeposits();
