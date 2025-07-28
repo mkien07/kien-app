@@ -120,7 +120,7 @@
   <div id="editModal">
     <div class="modal-content">
       <h3>📝 Sửa tài khoản</h3>
-      <input type="hidden" id="modalId">
+      <input type="hidden" id="modalUserId">
       <label>Username:</label><input id="modalUsername" disabled>
       <label>Email:</label><input id="modalEmail">
       <label>Mật khẩu:</label><input id="modalPassword">
@@ -152,7 +152,6 @@
     let users = [];
     let currentRole = 'user';
 
-    // Lấy role hiện tại và load data
     fetch('/profile')
       .then(res => res.json())
       .then(data => {
@@ -173,12 +172,11 @@
       const tbody = document.querySelector('#userTable tbody');
       tbody.innerHTML = '';
 
-      // Đếm trùng IP, email, phone
       const ipMap = {}, emailMap = {}, phoneMap = {};
       data.forEach(u => {
         ipMap[u.ipRegister] = (ipMap[u.ipRegister] || 0) + 1;
-        emailMap[u.email]     = (emailMap[u.email]     || 0) + 1;
-        phoneMap[u.phone]     = (phoneMap[u.phone]     || 0) + 1;
+        emailMap[u.email]   = (emailMap[u.email]   || 0) + 1;
+        phoneMap[u.phone]   = (phoneMap[u.phone]   || 0) + 1;
       });
 
       data.forEach(user => {
@@ -208,7 +206,7 @@
     }
 
     function openEdit(user) {
-      document.getElementById('modalId').value            = user._id;
+      document.getElementById('modalUserId').value        = user.userId;
       document.getElementById('modalUsername').value      = user.username;
       document.getElementById('modalEmail').value         = user.email;
       document.getElementById('modalPassword').value      = user.password;
@@ -222,17 +220,6 @@
       document.getElementById('modalUserAgent').value     = user.userAgent  || '';
       document.getElementById('modalRegisteredAt').value  = new Date(user.registeredAt).toLocaleString();
 
-      if (currentRole === 'qtv') {
-        ['modalEmail','modalPassword','modalBalance','modalInvestment','modalVip','modalRole']
-          .forEach(id => {
-            const el = document.getElementById(id);
-            el.disabled  = true;
-            el.style.background = '#eee';
-            el.style.opacity    = '0.6';
-            el.title            = 'Chỉ có admin mới được chỉnh mục này';
-          });
-      }
-
       document.getElementById('editModal').style.display = 'flex';
     }
 
@@ -241,7 +228,7 @@
     }
 
     function saveChanges() {
-      const id = document.getElementById('modalId').value;
+      const userId = document.getElementById('modalUserId').value;
       const payload = {
         email: document.getElementById('modalEmail').value,
         password: document.getElementById('modalPassword').value,
@@ -252,13 +239,17 @@
         locked: document.getElementById('modalLocked').value === 'true'
       };
 
-      fetch(`/admin/user/${id}`, {
+      fetch(`/admin/user/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      }).then(() => {
-        closeModal();
-        loadUsers();
+      }).then(res => {
+        if (res.ok) {
+          closeModal();
+          loadUsers();
+        } else {
+          alert('Lỗi lưu dữ liệu');
+        }
       });
     }
 
@@ -269,7 +260,7 @@
         u.username.toLowerCase().includes(kw) ||
         u.email.toLowerCase().includes(kw) ||
         (u.phone      || '').includes(kw) ||
-        (u.ipRegister|| '').includes(kw) ||
+        (u.ipRegister || '').includes(kw) ||
         ('' + u.balance).includes(kw)
       );
       renderTable(filtered);
