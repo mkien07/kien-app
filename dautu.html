@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đầu tư</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      background: linear-gradient(-45deg, #1b2735, #090a0f, #2c3e50, #000);
+      background-size: 400% 400%;
+      animation: gradientBG 20s ease infinite;
+      min-height: 100vh;
+      color: white;
+      padding-bottom: 80px;
+    }
+    @keyframes gradientBG {
+      0%{background-position:0% 50%;}
+      50%{background-position:100% 50%;}
+      100%{background-position:0% 50%;}
+    }
+
+    .container { max-width: 480px; margin: auto; padding: 20px; text-align: center; }
+    h1 { font-weight: 600; color: #00f2fe; margin-bottom: 20px; }
+
+    /* Gói đầu tư */
+    .plan {
+      background: rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 15px;
+      text-align: center;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
+    .plan h3 { margin: 0 0 8px; color: #f1f1f1; }
+    .plan p { font-size: 14px; color: #ccc; }
+    .plan button {
+      background: #3c4fa0;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      margin-top: 10px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .plan button:hover { background: #4e60b8; }
+
+    /* ✅ Thanh nav copy y nguyên từ trangchu.html */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      justify-content: space-around;
+      background: rgba(10, 15, 30, 0.7);
+      backdrop-filter: blur(15px);
+      color: #bbb;
+      padding: 8px 0;
+      border-radius: 18px 18px 0 0;
+      box-shadow: 0 -2px 15px rgba(0,0,0,0.6);
+      font-size: 14px;
+      z-index: 1000;
+    }
+    .nav-item { flex: 1; text-align: center; cursor: pointer; padding: 4px 0; color: #ccc; transition: all 0.3s ease; }
+    .nav-item span.icon { display: block; font-size: 22px; margin-bottom: 2px; transition: transform 0.3s ease; }
+    .nav-item.active { color: #00f2fe; font-weight: bold; }
+    .nav-item.active span.icon { transform: scale(1.2); color: #1abc9c; }
+    .nav-item:hover { color: #1abc9c; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>💹 Gói đầu tư</h1>
+
+    <div class="plan">
+      <h3>Gói 100.000đ</h3>
+      <p>Lợi nhuận: 40%/ngày</p>
+      <p>Chu kì: 3 ngày</p>
+      <button>Đầu tư ngay</button>
+    </div>
+
+    <div class="plan">
+      <h3>Gói 300.000đ</h3>
+      <p>Lợi nhuận: 30%/ngày</p>
+      <p>Chu kì: 4 ngày</p>
+      <button>Đầu tư ngay</button>
+    </div>
+  </div>
+
+  <!-- ✅ Thanh nav giữ nguyên -->
+  <div class="bottom-nav">
+    <div class="nav-item" onclick="navigate('trangchu.html')">
+      <span class="icon">🏠</span>Trang chủ
+    </div>
+    <div class="nav-item active" onclick="navigate('dautu.html')">
+      <span class="icon">📊</span>Đầu tư
+    </div>
+    <div class="nav-item" onclick="navigate('moibanbe.html')">
+      <span class="icon">👥</span>Mời bạn bè
+    </div>
+    <div class="nav-item" onclick="navigate('menu.html')">
+      <span class="icon">👤</span>Tôi
+    </div>
+  </div>
+
+  <script>
+    function navigate(url){ window.location.href = url; }
+  </script>
+</body>
+</html>
+
