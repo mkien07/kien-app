@@ -82,10 +82,9 @@ const logSchema = new mongoose.Schema({
 });
 const Log = mongoose.model('Log', logSchema);
 
-// ✅ Investment model
 const investSchema = new mongoose.Schema({
   userId: String,
-  package: String,   // '100k' hoặc '300k'
+  package: String,
   amount: Number,
   profitRate: Number,
   days: Number,
@@ -296,7 +295,6 @@ app.post('/invest', async (req, res) => {
   res.json({ message: 'Đầu tư thành công', newBalance: user.balance });
 });
 
-
 // API: Lấy gói đầu tư của user
 app.get('/api/investments', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Chưa đăng nhập');
@@ -304,12 +302,12 @@ app.get('/api/investments', async (req, res) => {
   res.json(list);
 });
 
-// ✅ Cronjob cộng lãi
-cron.schedule('* * * * *', async () => { //chỉnh * thành 0
+// ✅ Cronjob cộng lãi (mỗi phút để test, deploy thật chỉnh lại mỗi ngày)
+cron.schedule('* * * * *', async () => {  // chỉnh * thành 0 để chạy theo ngày
   const now = new Date();
   const all = await Investment.find({ status: 'active' });
   for (let inv of all) {
-    const diff = (now - inv.lastProfitAt) / (1000*60); // 1 ngày 1000*60*60*24
+    const diff = (now - inv.lastProfitAt) / (1000*60); // 60s
     if (diff >= 1) {
       const profit = inv.amount * inv.profitRate;
       await User.updateOne({ userId: inv.userId }, { $inc: { balance: profit } });
@@ -333,116 +331,25 @@ cron.schedule('* * * * *', async () => { //chỉnh * thành 0
   }
 });
 
-// ADMINWITH: QUẢN LÝ RÚT
-app.get('/admin/withdraws', async (req, res) => {
+// ✅ API: Xóa tất cả gói đầu tư của 1 user (không hoàn tiền)
+app.delete('/admin/investments/:userId', async (req,res)=>{
   const u = req.session.user;
-  if (!u || u.role !== 'adminwith') return res.status(403).send('Không có quyền');
-  const list = await Withdraw.find().sort({ createdAt: -1 }).lean();
-  res.json(list);
-});
-app.post('/admin/withdraw/:id/approve', async (req, res) => {
-  const u = req.session.user;
-  if (!u || u.role !== 'adminwith') return res.status(403).send('Không có quyền');
-  const w = await Withdraw.findById(req.params.id);
-  if (!w) return res.status(404).send('Không tìm thấy đơn');
-  const oldStatus = w.status;
-  w.status = 'approved';
-  w.note   = req.body.note || '';
-  w.updatedAt = new Date();
-  await w.save();
+  if(!u || !['admin','qtv'].includes(u.role)) return res.status(403).send('Không có quyền');
+
+  const userId = req.params.userId;
+  const deleted = await Investment.deleteMany({ userId });
+  await User.updateOne({ userId }, { $set: { investment: 0 } });
 
   await new Log({
     actor: u.username,
-    action: 'Duyệt đơn rút',
-    targetUserId: w.userId,
-    oldData: { status: oldStatus },
-    newData: { status: 'approved' },
+    action: 'Xóa toàn bộ gói đầu tư',
+    targetUserId: userId,
+    newData: { deletedCount: deleted.deletedCount },
     ip: req.ip,
     userAgent: req.headers['user-agent']
   }).save();
 
-  res.send('Đã duyệt đơn rút');
-});
-app.post('/admin/withdraw/:id/cancel', async (req, res) => {
-  const u = req.session.user;
-  if (!u || u.role !== 'adminwith') return res.status(403).send('Không có quyền');
-  const w = await Withdraw.findById(req.params.id);
-  if (!w) return res.status(404).send('Không tìm thấy đơn');
-  const usr = await User.findOne({ userId: w.userId });
-  if (usr) {
-    usr.balance += w.amount; await usr.save();
-  }
-  const oldStatus = w.status;
-  w.status    = 'canceled';
-  w.note      = req.body.note || '';
-  w.updatedAt = new Date();
-  await w.save();
-
-  await new Log({
-    actor: u.username,
-    action: 'Hủy đơn rút',
-    targetUserId: w.userId,
-    oldData: { status: oldStatus },
-    newData: { status: 'canceled' },
-    ip: req.ip,
-    userAgent: req.headers['user-agent']
-  }).save();
-
-  res.send('Đã hủy đơn rút & hoàn tiền');
-});
-
-// ADMIN USERS (data.html)
-app.get('/admin/users', async (req, res) => {
-  const u = req.session.user;
-  if (!u || !['admin','qtv'].includes(u.role)) return res.status(403).send('Không có quyền');
-  const users = await User.find().lean();
-  res.json(users);
-});
-
-// ADMIN: CẬP NHẬT USER & LƯU LOG
-app.put('/admin/user/:userId', async (req, res) => {
-  const u = req.session.user;
-  if (!u || !['admin','qtv'].includes(u.role)) return res.status(403).send('Không có quyền');
-
-  const user = await User.findOne({ userId: req.params.userId });
-  if (!user) return res.status(404).send('User không tồn tại');
-
-  const oldData = {
-    email: user.email, password: user.password, balance: user.balance,
-    investment: user.investment, vipLevel: user.vipLevel,
-    role: user.role, locked: user.locked
-  };
-
-  const fields = ['email','password','balance','investment','vipLevel','locked','role'];
-  fields.forEach(f => { if (req.body[f] !== undefined) user[f] = req.body[f]; });
-  await user.save();
-
-  const newData = {
-    email: user.email, password: user.password, balance: user.balance,
-    investment: user.investment, vipLevel: user.vipLevel,
-    role: user.role, locked: user.locked
-  };
-
-  if (req.body.balance !== undefined && req.body.balance !== oldData.balance) {
-    const diff = req.body.balance - oldData.balance;
-    await new Deposit({
-      userId: user.userId,
-      amount: Math.abs(diff),
-      note: diff > 0 ? 'Admin cộng tiền' : 'Admin trừ tiền'
-    }).save();
-  }
-
-  await new Log({
-    actor: u.username,
-    action: 'Cập nhật user',
-    targetUserId: user.userId,
-    oldData,
-    newData,
-    ip: req.ip,
-    userAgent: req.headers['user-agent']
-  }).save();
-
-  res.send('Đã cập nhật user');
+  res.send('Đã xóa ' + deleted.deletedCount + ' gói đầu tư của user ' + userId);
 });
 
 // ✅ API: Lịch sử log cho histori.html
@@ -458,4 +365,5 @@ app.use(express.static(path.join(__dirname, '/')));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server chạy tại http://localhost:${PORT}`));
+
 

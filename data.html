@@ -43,6 +43,7 @@
       font-size: 12px; cursor: pointer;
     }
     .edit-btn { background: #f39c12; color: white; }
+    .delete-btn { background: #e74c3c; color: white; }
     #editModal {
       display: none; position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
@@ -144,6 +145,9 @@
       <div class="modal-buttons">
         <button class="save-btn" onclick="saveChanges()">Lưu</button>
         <button class="cancel-btn" onclick="closeModal()">Hủy</button>
+      </div>
+      <div class="modal-buttons">
+        <button class="delete-btn" onclick="deleteInvestments()">Xóa gói</button>
       </div>
     </div>
   </div>
@@ -253,6 +257,22 @@
       });
     }
 
+    function deleteInvestments() {
+      const userId = document.getElementById('modalUserId').value;
+      if (confirm('Bạn có chắc muốn xóa tất cả gói đầu tư của user này?')) {
+        fetch(`/admin/investments/${userId}`, { method: 'DELETE' })
+          .then(res => {
+            if (res.ok) {
+              alert('✅ Đã xóa tất cả gói đầu tư');
+              closeModal();
+              loadUsers();
+            } else {
+              alert('❌ Lỗi xóa gói');
+            }
+          });
+      }
+    }
+
     document.getElementById('search').addEventListener('input', e => {
       const kw = e.target.value.toLowerCase();
       const filtered = users.filter(u =>
@@ -269,3 +289,4 @@
 
 </body>
 </html>
+
