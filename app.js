@@ -309,14 +309,14 @@ app.delete('/admin/investment/:id', async (req, res) => {
 });
 
 // ✅ Cronjob cộng lãi (fix lỗi nhiều gói cùng user)
-cron.schedule('* * * * *', async () => {
+cron.schedule('0 * * * *', async () => {
   const now = new Date();
   const activeInvestments = await Investment.find({ status: 'active' });
 
   const profitMap = {};
 
   for (let inv of activeInvestments) {
-    const diff = (now - inv.lastProfitAt) / (1000*60); // test 1 phút
+    const diff = (now - inv.lastProfitAt) / (1000*60*60*24); // test 1 phút
     if (diff >= 1) {
       const profit = inv.amount * inv.profitRate;
       if (!profitMap[inv.userId]) profitMap[inv.userId] = 0;
@@ -333,7 +333,7 @@ cron.schedule('* * * * *', async () => {
       await inv.save();
 
       await new Log({
-        actor: 'system',
+        actor: 'Hệ thống',
         action: 'Cộng lãi gói ' + inv.package,
         targetUserId: inv.userId,
         newData: { profit },
