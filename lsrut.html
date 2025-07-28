@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Lịch sử rút tiền</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f5f6fa;
+      margin: 0;
+      padding: 20px;
+    }
+    h2 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .table-container {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      text-align: center;
+      font-size: 14px;
+    }
+    th {
+      background: #2e86de;
+      color: white;
+    }
+    tr:hover {
+      background: #f1f1f1;
+    }
+    .status-pending {
+      color: orange;
+      font-weight: 600;
+    }
+    .status-approved {
+      color: green;
+      font-weight: 600;
+    }
+    .status-canceled {
+      color: red;
+      font-weight: 600;
+    }
+    #search {
+      display: block;
+      margin: 10px auto 20px;
+      padding: 8px;
+      width: 250px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-family: inherit;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>📜 Lịch sử rút tiền</h2>
+  <input type="text" id="search" placeholder="🔍 Tìm kiếm số tiền, trạng thái...">
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Số tiền</th>
+          <th>Phương thức</th>
+          <th>Trạng thái</th>
+          <th>Thời gian tạo</th>
+          <th>Thời gian duyệt</th>
+        </tr>
+      </thead>
+      <tbody id="withdrawBody">
+        <tr><td colspan="5">Đang tải...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    let withdraws = [];
+
+    async function loadWithdraws() {
+      try {
+        const res = await fetch('/api/withdraws');
+        withdraws = await res.json();
+        renderTable(withdraws);
+      } catch (err) {
+        document.getElementById('withdrawBody').innerHTML =
+          '<tr><td colspan="5">Lỗi tải dữ liệu</td></tr>';
+      }
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById('withdrawBody');
+      tbody.innerHTML = '';
+
+      if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5">Chưa có đơn rút nào</td></tr>';
+        return;
+      }
+
+      data.forEach(w => {
+        const updated = w.updatedAt
+          ? new Date(w.updatedAt).toLocaleString()
+          : '-';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${w.amount.toLocaleString()}₫</td>
+          <td>${w.method.toUpperCase()}</td>
+          <td class="status-${w.status}">${w.status}</td>
+          <td>${new Date(w.createdAt).toLocaleString()}</td>
+          <td>${updated}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById('search').addEventListener('input', e => {
+      const kw = e.target.value.toLowerCase();
+      const filtered = withdraws.filter(w =>
+        w.amount.toString().includes(kw) ||
+        w.method.toLowerCase().includes(kw) ||
+        w.status.toLowerCase().includes(kw)
+      );
+      renderTable(filtered);
+    });
+
+    // Khởi tạo
+    loadWithdraws();
+  </script>
+</body>
+</html>
