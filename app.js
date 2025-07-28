@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const session = require('express-session');
 const path = require('path');
+const cron = require('node-cron');
 
 const app = express();
 app.set('trust proxy', true);
@@ -80,6 +81,20 @@ const logSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 const Log = mongoose.model('Log', logSchema);
+
+// ✅ Investment model
+const investSchema = new mongoose.Schema({
+  userId: String,
+  package: String,   // '100k' hoặc '300k'
+  amount: Number,
+  profitRate: Number,
+  days: Number,
+  profitDays: { type: Number, default: 0 },
+  status: { type: String, default: 'active' },
+  createdAt: { type: Date, default: Date.now },
+  lastProfitAt: Date
+});
+const Investment = mongoose.model('Investment', investSchema);
 
 // =====================
 // MIDDLEWARE
@@ -243,6 +258,80 @@ app.get('/api/deposits', async (req, res) => {
   res.json(list);
 });
 
+// ✅ ĐẦU TƯ
+app.post('/invest', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Chưa đăng nhập');
+  const { package } = req.body;
+  const user = await User.findOne({ userId: req.session.user.userId });
+  if (!user) return res.status(404).send('User không tồn tại');
+
+  let amount, rate, days;
+  if (package === '100k') { amount = 100000; rate = 0.4; days = 3; }
+  else if (package === '300k') { amount = 300000; rate = 0.3; days = 4; }
+  else return res.status(400).send('Gói không hợp lệ');
+
+  if (user.balance < amount) return res.status(400).send('Số dư không đủ');
+
+  user.balance -= amount;
+  user.investment += amount;
+  await user.save();
+
+  await new Investment({
+    userId: user.userId,
+    package, amount,
+    profitRate: rate,
+    days,
+    lastProfitAt: new Date()
+  }).save();
+
+  await new Log({
+    actor: user.username,
+    action: 'Đầu tư gói ' + package,
+    targetUserId: user.userId,
+    newData: { amount },
+    ip: req.ip,
+    userAgent: req.headers['user-agent']
+  }).save();
+
+  res.json({ newBalance: user.balance });
+});
+
+// API: Lấy gói đầu tư của user
+app.get('/api/investments', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Chưa đăng nhập');
+  const list = await Investment.find({ userId: req.session.user.userId, status: 'active' }).lean();
+  res.json(list);
+});
+
+// ✅ Cronjob cộng lãi
+cron.schedule('* * * * *', async () => { //chỉnh * thành 0
+  const now = new Date();
+  const all = await Investment.find({ status: 'active' });
+  for (let inv of all) {
+    const diff = (now - inv.lastProfitAt) / (1000*60); // 1 ngày 1000*60*60*24
+    if (diff >= 1) {
+      const profit = inv.amount * inv.profitRate;
+      await User.updateOne({ userId: inv.userId }, { $inc: { balance: profit } });
+      inv.profitDays += 1;
+      inv.lastProfitAt = now;
+
+      if (inv.profitDays >= inv.days) {
+        inv.status = 'finished';
+        await User.updateOne({ userId: inv.userId }, { $inc: { investment: -inv.amount } });
+      }
+
+      await inv.save();
+      await new Log({
+        actor: 'system',
+        action: 'Cộng lãi',
+        targetUserId: inv.userId,
+        newData: { profit },
+        createdAt: now
+      }).save();
+    }
+  }
+});
+
 // ADMINWITH: QUẢN LÝ RÚT
 app.get('/admin/withdraws', async (req, res) => {
   const u = req.session.user;
@@ -368,3 +457,4 @@ app.use(express.static(path.join(__dirname, '/')));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server chạy tại http://localhost:${PORT}`));
+

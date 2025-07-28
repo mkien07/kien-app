@@ -45,10 +45,11 @@
       margin-top: 10px;
       cursor: pointer;
       font-size: 14px;
+      transition: background 0.3s ease;
     }
     .plan button:hover { background: #4e60b8; }
 
-    /* ✅ Thanh nav copy y nguyên từ trangchu.html */
+    /* ✅ Thanh nav copy từ trangchu.html */
     .bottom-nav {
       position: fixed;
       bottom: 0; left: 50%;
@@ -81,14 +82,14 @@
       <h3>Gói 100.000đ</h3>
       <p>Lợi nhuận: 40%/ngày</p>
       <p>Chu kì: 3 ngày</p>
-      <button>Đầu tư ngay</button>
+      <button onclick="invest(100000)">Đầu tư ngay</button>
     </div>
 
     <div class="plan">
       <h3>Gói 300.000đ</h3>
       <p>Lợi nhuận: 30%/ngày</p>
-      <p>Chu kì: 4 ngày</p>
-      <button>Đầu tư ngay</button>
+      <p>Chu kì: 3 ngày</p>
+      <button onclick="invest(300000)">Đầu tư ngay</button>
     </div>
   </div>
 
@@ -110,7 +111,21 @@
 
   <script>
     function navigate(url){ window.location.href = url; }
+
+    async function invest(amount){
+      const res = await fetch('/invest', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ amount })
+      });
+      if(res.ok){
+        const data = await res.json();
+        alert('✅ Đầu tư thành công! Số dư còn: ' + data.balance.toLocaleString() + 'đ');
+      } else {
+        const msg = await res.text();
+        alert('❌ ' + msg);
+      }
+    }
   </script>
 </body>
 </html>
-
