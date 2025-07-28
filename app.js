@@ -266,8 +266,8 @@ app.post('/invest', async (req, res) => {
   if (!user) return res.status(404).send('User không tồn tại');
 
   let amount, rate, days;
-  if (package === '100k') { amount = 100000; rate = 0.4; days = 3; }
-  else if (package === '300k') { amount = 300000; rate = 0.3; days = 4; }
+  if (package === '100000') { amount = 100000; rate = 0.4; days = 3; }
+  else if (package === '300000') { amount = 300000; rate = 0.3; days = 4; }
   else return res.status(400).send('Gói không hợp lệ');
 
   if (user.balance < amount) return res.status(400).send('Số dư không đủ');
