@@ -260,17 +260,17 @@ app.get('/api/deposits', async (req, res) => {
 
 // ✅ ĐẦU TƯ
 app.post('/invest', async (req, res) => {
-  if (!req.session.user) return res.status(401).send('Chưa đăng nhập');
-  const { package } = req.body;
+  if (!req.session.user) return res.status(401).json({ error: 'Chưa đăng nhập' });
+  const { plan } = req.body;
   const user = await User.findOne({ userId: req.session.user.userId });
-  if (!user) return res.status(404).send('User không tồn tại');
+  if (!user) return res.status(404).json({ error: 'User không tồn tại' });
 
   let amount, rate, days;
-  if (package === '100000') { amount = 100000; rate = 0.4; days = 3; }
-  else if (package === '300000') { amount = 300000; rate = 0.3; days = 4; }
-  else return res.status(400).send('Gói không hợp lệ');
+  if (plan === '100000') { amount = 100000; rate = 0.4; days = 3; }
+  else if (plan === '300000') { amount = 300000; rate = 0.3; days = 4; }
+  else return res.status(400).json({ error: 'Gói không hợp lệ' });
 
-  if (user.balance < amount) return res.status(400).send('Số dư không đủ');
+  if (user.balance < amount) return res.status(400).json({ error: 'Số dư không đủ' });
 
   user.balance -= amount;
   user.investment += amount;
@@ -278,7 +278,7 @@ app.post('/invest', async (req, res) => {
 
   await new Investment({
     userId: user.userId,
-    package, amount,
+    package: plan, amount,
     profitRate: rate,
     days,
     lastProfitAt: new Date()
@@ -286,15 +286,16 @@ app.post('/invest', async (req, res) => {
 
   await new Log({
     actor: user.username,
-    action: 'Đầu tư gói ' + package,
+    action: 'Đầu tư gói ' + plan,
     targetUserId: user.userId,
     newData: { amount },
     ip: req.ip,
     userAgent: req.headers['user-agent']
   }).save();
 
-  res.json({ newBalance: user.balance });
+  res.json({ message: 'Đầu tư thành công', newBalance: user.balance });
 });
+
 
 // API: Lấy gói đầu tư của user
 app.get('/api/investments', async (req, res) => {

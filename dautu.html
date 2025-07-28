@@ -49,6 +49,21 @@
     }
     .plan button:hover { background: #4e60b8; }
 
+    /* ✅ Popup */
+    #popup {
+      position: fixed;
+      top: 20px; left: 50%;
+      transform: translateX(-50%);
+      background: #e74c3c;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: bold;
+      display: none;
+      z-index: 2000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
     /* ✅ Thanh nav copy từ trangchu.html */
     .bottom-nav {
       position: fixed;
@@ -75,6 +90,8 @@
   </style>
 </head>
 <body>
+  <div id="popup"></div>
+
   <div class="container">
     <h1>💹 Gói đầu tư</h1>
 
@@ -82,14 +99,14 @@
       <h3>Gói 100.000đ</h3>
       <p>Lợi nhuận: 40%/ngày</p>
       <p>Chu kì: 3 ngày</p>
-      <button onclick="invest(100000)">Đầu tư ngay</button>
+      <button onclick="invest('100000')">Đầu tư ngay</button>
     </div>
 
     <div class="plan">
       <h3>Gói 300.000đ</h3>
       <p>Lợi nhuận: 30%/ngày</p>
-      <p>Chu kì: 3 ngày</p>
-      <button onclick="invest(300000)">Đầu tư ngay</button>
+      <p>Chu kì: 4 ngày</p>
+      <button onclick="invest('300000')">Đầu tư ngay</button>
     </div>
   </div>
 
@@ -112,18 +129,26 @@
   <script>
     function navigate(url){ window.location.href = url; }
 
-    async function invest(amount){
+    function showPopup(msg, color="#e74c3c"){
+      const popup = document.getElementById('popup');
+      popup.innerText = msg;
+      popup.style.background = color;
+      popup.style.display = 'block';
+      setTimeout(()=>popup.style.display='none', 2500);
+    }
+
+    async function invest(plan){
       const res = await fetch('/invest', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ amount })
+        body: JSON.stringify({ plan })
       });
+      const data = await res.json().catch(()=>({error:'Lỗi hệ thống'}));
+
       if(res.ok){
-        const data = await res.json();
-        alert('✅ Đầu tư thành công! Số dư còn: ' + data.balance.toLocaleString() + 'đ');
+        showPopup(data.message || '✅ Đầu tư thành công!', '#27ae60');
       } else {
-        const msg = await res.text();
-        alert('❌ ' + msg);
+        showPopup(data.error || '❌ Có lỗi xảy ra');
       }
     }
   </script>
