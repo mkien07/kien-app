@@ -98,9 +98,9 @@
   <!-- Modal ghi chú -->
   <div id="noteModal" class="modal">
     <div class="modal-content">
-      <h3>Ghi chú đơn rút</h3>
+      <h3>Nhập ghi chú</h3>
       <textarea id="noteText" style="width:100%;height:100px;padding:8px;"></textarea>
-      <button class="close-btn" onclick="saveNote()">Lưu</button>
+      <button class="close-btn" onclick="submitNote()">Lưu</button>
     </div>
   </div>
 
@@ -109,7 +109,8 @@
 
   <script>
     let withdraws = [];
-    let currentNoteId = null;
+    let currentAction = null;
+    let currentId = null;
 
     async function loadWithdraws() {
       const res = await fetch('/admin/withdraws');
@@ -123,18 +124,14 @@
       data.forEach(w => {
         const tr = document.createElement('tr');
         let actionBtns = `<button class="detail" onclick='viewDetail(${JSON.stringify(w)})'>Chi tiết</button>`;
-
         if (w.status === 'pending') {
           actionBtns = `
-            <button class="approve" onclick="approve('${w._id}')">Duyệt</button>
-            <button class="cancel" onclick="cancel('${w._id}')">Hủy</button>
+            <button class="approve" onclick="openNote('${w._id}','approve')">Duyệt</button>
+            <button class="cancel" onclick="openNote('${w._id}','cancel')">Hủy</button>
             <button class="detail" onclick='viewDetail(${JSON.stringify(w)})'>Chi tiết</button>
-            <button class="note" onclick="openNote('${w._id}')">Ghi chú</button>
           `;
         }
-
         const updated = w.updatedAt ? new Date(w.updatedAt).toLocaleString() : '-';
-
         tr.innerHTML = `
           <td>${w.userId}</td>
           <td>${w.method.toUpperCase()}</td>
@@ -161,6 +158,7 @@
         <p><b>Số tiền:</b> ${w.amount.toLocaleString()}₫</p>
         <p><b>Trạng thái:</b> ${w.status}</p>
         <p><b>Ngày duyệt:</b> ${updated}</p>
+        <p><b>Ghi chú:</b> ${w.note || 'Không có'}</p>
       `;
       document.getElementById('detailContent').innerHTML = detail;
       document.getElementById('detailModal').style.display = 'flex';
@@ -171,14 +169,31 @@
       document.getElementById('noteModal').style.display = 'none';
     }
 
-    async function approve(id) {
-      await fetch(`/admin/withdraw/${id}/approve`, { method: 'POST' });
-      showPopup('✅ Đã duyệt đơn');
-      loadWithdraws();
+    function openNote(id, action) {
+      currentId = id;
+      currentAction = action;
+      document.getElementById('noteText').value = '';
+      document.getElementById('noteModal').style.display = 'flex';
     }
-    async function cancel(id) {
-      await fetch(`/admin/withdraw/${id}/cancel`, { method: 'POST' });
-      showPopup('❌ Đã hủy đơn & hoàn tiền');
+
+    async function submitNote() {
+      const note = document.getElementById('noteText').value;
+      if (currentAction === 'approve') {
+        await fetch(`/admin/withdraw/${currentId}/approve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note })
+        });
+        showPopup('✅ Đã duyệt đơn');
+      } else if (currentAction === 'cancel') {
+        await fetch(`/admin/withdraw/${currentId}/cancel`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note })
+        });
+        showPopup('❌ Đã hủy đơn & hoàn tiền');
+      }
+      closeModal();
       loadWithdraws();
     }
 
@@ -187,18 +202,6 @@
       popup.innerText = msg;
       popup.style.display = 'block';
       setTimeout(()=> popup.style.display='none', 2000);
-    }
-
-    function openNote(id) {
-      currentNoteId = id;
-      document.getElementById('noteText').value = '';
-      document.getElementById('noteModal').style.display = 'flex';
-    }
-    function saveNote() {
-      const text = document.getElementById('noteText').value;
-      console.log('💬 Ghi chú cho đơn', currentNoteId, ':', text);
-      showPopup('📝 Đã lưu ghi chú');
-      closeModal();
     }
 
     document.getElementById('search').addEventListener('input', e => {

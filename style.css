@@ -321,3 +321,6 @@ body {
   font-size: 14px;
   text-align: center;
 }
+.status-approved { color: #2ecc71; font-weight: 600; }   /* Thành công = xanh lá */
+.status-pending { color: #f1c40f; font-weight: 600; }   /* Đợi duyệt = vàng */
+.status-canceled { color: #e74c3c; font-weight: 600; }  /* Thất bại = đỏ */

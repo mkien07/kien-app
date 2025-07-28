@@ -6,7 +6,6 @@
   <title>Lịch sử rút tiền</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    /* Background tối giống menu.html */
     body {
       font-family: 'Poppins', sans-serif;
       background: linear-gradient(-45deg, #1b2735, #090a0f, #2c3e50, #000);
@@ -59,10 +58,10 @@
       background: rgba(255,255,255,0.05);
     }
 
-    /* Status badge */
-    .status-pending { color: #f39c12; font-weight: 600; }
-    .status-approved { color: #2ecc71; font-weight: 600; }
-    .status-canceled { color: #e74c3c; font-weight: 600; }
+    /* Trạng thái */
+    .status-approved { color: #2ecc71; font-weight: 600; }   /* Thành công */
+    .status-pending { color: #f1c40f; font-weight: 600; }    /* Đợi duyệt */
+    .status-canceled { color: #e74c3c; font-weight: 600; }   /* Thất bại */
 
     button.detail-btn {
       background: #3498db;
@@ -78,7 +77,7 @@
       background: #2980b9;
     }
 
-    /* Popup */
+    /* Modal */
     #detailModal {
       display: none;
       position: fixed;
@@ -146,7 +145,7 @@
     </table>
   </div>
 
-  <!-- Popup chi tiết -->
+  <!-- Modal -->
   <div id="detailModal">
     <div class="modal-content">
       <h3>Chi tiết rút tiền</h3>
@@ -163,7 +162,7 @@
         const res = await fetch('/api/withdraws');
         withdraws = await res.json();
         renderTable(withdraws);
-      } catch (err) {
+      } catch {
         document.getElementById('withdrawBody').innerHTML =
           '<tr><td colspan="6">Lỗi tải dữ liệu</td></tr>';
       }
@@ -180,11 +179,15 @@
 
       data.forEach(w => {
         const updated = w.updatedAt ? new Date(w.updatedAt).toLocaleString() : '-';
+        const statusText =
+          w.status === 'approved' ? 'Thành công' :
+          w.status === 'pending' ? 'Đợi duyệt' : 'Thất bại';
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${w.amount.toLocaleString()}₫</td>
           <td>${w.method.toUpperCase()}</td>
-          <td class="status-${w.status}">${w.status}</td>
+          <td class="status-${w.status}">${statusText}</td>
           <td>${new Date(w.createdAt).toLocaleString()}</td>
           <td>${updated}</td>
           <td><button class="detail-btn" onclick='openDetail(${JSON.stringify(w)})'>Chi tiết</button></td>
@@ -194,9 +197,14 @@
     }
 
     function openDetail(w) {
+      const updated = w.updatedAt ? new Date(w.updatedAt).toLocaleString() : '-';
+      const statusText =
+        w.status === 'approved' ? 'Thành công' :
+        w.status === 'pending' ? 'Đợi duyệt' : 'Thất bại';
+
       const content = `
         <p><b>Số tiền:</b> ${w.amount.toLocaleString()}₫</p>
-        <p><b>Trạng thái:</b> ${w.status}</p>
+        <p><b>Trạng thái:</b> ${statusText}</p>
         <p><b>Phương thức:</b> ${w.method.toUpperCase()}</p>
         <p><b>Số tài khoản:</b> ${w.accountNumber || '-'}</p>
         <p><b>Chủ tài khoản:</b> ${w.accountName || '-'}</p>
@@ -204,7 +212,7 @@
         <p><b>Địa chỉ USDT:</b> ${w.usdtAddress || '-'}</p>
         <p><b>Network:</b> ${w.network || '-'}</p>
         <p><b>Thời gian tạo:</b> ${new Date(w.createdAt).toLocaleString()}</p>
-        <p><b>Thời gian duyệt:</b> ${w.updatedAt ? new Date(w.updatedAt).toLocaleString() : '-'}</p>
+        <p><b>Thời gian duyệt:</b> ${updated}</p>
         <p><b>Ghi chú admin:</b> ${w.note || 'Không có'}</p>
       `;
       document.getElementById('detailContent').innerHTML = content;

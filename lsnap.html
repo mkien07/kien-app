@@ -58,10 +58,10 @@
       background: rgba(255,255,255,0.05);
     }
 
-    /* Status màu */
-    .status-pending { color: #f39c12; font-weight: 600; }
-    .status-approved { color: #2ecc71; font-weight: 600; }
-    .status-canceled { color: #e74c3c; font-weight: 600; }
+    /* Trạng thái */
+    .status-approved { color: #2ecc71; font-weight: 600; }   /* Thành công */
+    .status-pending { color: #f1c40f; font-weight: 600; }    /* Đợi duyệt */
+    .status-canceled { color: #e74c3c; font-weight: 600; }   /* Thất bại */
 
     button.detail-btn {
       background: #3498db;
@@ -157,7 +157,7 @@
 
     async function loadDeposits() {
       try {
-        const res = await fetch('/api/deposits'); // API trả về lịch sử nạp riêng user
+        const res = await fetch('/api/deposits');
         deposits = await res.json();
         renderTable(deposits);
       } catch (err) {
@@ -176,10 +176,14 @@
       }
 
       data.forEach(d => {
+        const statusText =
+          d.status === 'approved' ? 'Thành công' :
+          d.status === 'pending' ? 'Đợi duyệt' : 'Thất bại';
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${d.amount.toLocaleString()}₫</td>
-          <td class="status-${d.status}">${d.status}</td>
+          <td class="status-${d.status}">${statusText}</td>
           <td>${new Date(d.createdAt).toLocaleString()}</td>
           <td><button class="detail-btn" onclick='openDetail(${JSON.stringify(d)})'>Chi tiết</button></td>
         `;
@@ -188,9 +192,13 @@
     }
 
     function openDetail(d) {
+      const statusText =
+        d.status === 'approved' ? 'Thành công' :
+        d.status === 'pending' ? 'Đợi duyệt' : 'Thất bại';
+
       const content = `
         <p><b>Số tiền:</b> ${d.amount.toLocaleString()}₫</p>
-        <p><b>Trạng thái:</b> ${d.status}</p>
+        <p><b>Trạng thái:</b> ${statusText}</p>
         <p><b>User ID:</b> ${d.userId}</p>
         <p><b>Thời gian nạp:</b> ${new Date(d.createdAt).toLocaleString()}</p>
         <p><b>Ghi chú admin:</b> ${d.note || 'Không có'}</p>
