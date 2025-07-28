@@ -6,7 +6,7 @@ const path = require('path');
 const app = express();
 app.set('trust proxy', true);
 
-// 🔗 MongoDB
+// ✅ Kết nối MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true, useUnifiedTopology: true
 })
@@ -54,11 +54,21 @@ const withdrawSchema = new mongoose.Schema({
   network: String,
   amount: Number,
   status: { type: String, default: 'pending' },
-  note: String, // ✅ ghi chú admin
+  note: String,
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date
 });
 const Withdraw = mongoose.model('Withdraw', withdrawSchema);
+
+// ✅ Model Deposit
+const depositSchema = new mongoose.Schema({
+  userId: String,
+  amount: Number,
+  note: String,
+  status: { type: String, default: 'approved' }, // luôn thành công vì admin cộng
+  createdAt: { type: Date, default: Date.now }
+});
+const Deposit = mongoose.model('Deposit', depositSchema);
 
 // =====================
 // MIDDLEWARE
@@ -176,10 +186,18 @@ app.post('/withdraw', async (req, res) => {
   res.json({ newBalance: user.balance });
 });
 
-// ✅ API: Lịch sử rút cho user hiện tại
+// ✅ API: Lịch sử rút cho user
 app.get('/api/withdraws', async (req, res) => {
   if (!req.session.user) return res.status(401).send('Chưa đăng nhập');
   const list = await Withdraw.find({ userId: req.session.user.userId })
+    .sort({ createdAt: -1 }).lean();
+  res.json(list);
+});
+
+// ✅ API: Lịch sử nạp cho user
+app.get('/api/deposits', async (req, res) => {
+  if (!req.session.user) return res.status(401).send('Chưa đăng nhập');
+  const list = await Deposit.find({ userId: req.session.user.userId })
     .sort({ createdAt: -1 }).lean();
   res.json(list);
 });
@@ -200,7 +218,7 @@ app.post('/admin/withdraw/:id/approve', async (req, res) => {
   if (!w) return res.status(404).send('Không tìm thấy đơn');
 
   w.status = 'approved';
-  w.note = req.body.note || ''; // ✅ lưu ghi chú
+  w.note = req.body.note || '';
   w.updatedAt = new Date();
   await w.save();
   res.send('Đã duyệt đơn rút');
@@ -226,12 +244,31 @@ app.post('/admin/withdraw/:id/cancel', async (req, res) => {
   res.send('Đã hủy đơn rút & hoàn tiền');
 });
 
-// ADMIN USERS (data.html)
-app.get('/admin/users', async (req, res) => {
+// ✅ ADMIN: Update user & log nạp tiền
+app.put('/admin/user/:userId', async (req, res) => {
   const u = req.session.user;
   if (!u || !['admin','qtv'].includes(u.role)) return res.status(403).send('Không có quyền');
-  const users = await User.find().lean();
-  res.json(users);
+
+  const user = await User.findOne({ userId: req.params.userId });
+  if (!user) return res.status(404).send('User không tồn tại');
+
+  const oldBalance = user.balance;
+  const fields = ['email','password','balance','investment','vipLevel','locked','role'];
+  fields.forEach(f => { if (req.body[f] !== undefined) user[f] = req.body[f]; });
+
+  await user.save();
+
+  // ✅ Nếu cộng tiền thì log vào Deposit
+  if (req.body.balance !== undefined && req.body.balance > oldBalance) {
+    const amount = req.body.balance - oldBalance;
+    await new Deposit({
+      userId: user.userId,
+      amount: amount,
+      note: 'Admin cộng tiền'
+    }).save();
+  }
+
+  res.send('Đã cập nhật user');
 });
 
 // =====================
@@ -241,3 +278,4 @@ app.use(express.static(path.join(__dirname, '/')));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server chạy tại http://localhost:${PORT}`));
+
