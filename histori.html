@@ -2,176 +2,164 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Lịch sử thay đổi hệ thống</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lịch sử thay đổi</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
   <style>
     body {
       font-family: 'Poppins', sans-serif;
-      background: #1b2735;
-      margin: 0; padding: 20px;
-      color: #f1f1f1;
+      background: #1e272e;
+      margin: 0;
+      padding: 20px;
+      color: #fff;
     }
-    h2 { text-align: center; margin-bottom: 20px; color: #00f2fe; }
+    h2 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
     #search {
       display: block;
-      margin: 0 auto 15px;
+      margin: 0 auto 20px;
       padding: 8px;
-      width: 300px;
-      border-radius: 8px;
+      width: 280px;
+      border-radius: 6px;
       border: none;
-      font-size: 14px;
     }
-    .table-container {
-      max-width: 1000px; margin: auto;
-      background: rgba(30, 30, 30, 0.7);
-      padding: 15px; border-radius: 10px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    .history-container {
+      max-width: 950px;
+      margin: auto;
+      background: rgba(0,0,0,0.4);
+      border-radius: 10px;
+      padding: 10px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      color: #fff;
     }
     th, td {
-      padding: 10px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 8px;
       text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
       font-size: 13px;
     }
-    th {
-      background: rgba(79,172,254,0.2);
-      color: #00f2fe;
-    }
+    th { background: rgba(255,255,255,0.1); }
     tr:hover { background: rgba(255,255,255,0.05); }
-
-    button.detail-btn {
+    .detail-btn {
+      padding: 4px 8px;
       background: #3498db;
       border: none;
-      color: white;
-      padding: 5px 10px;
       border-radius: 6px;
+      color: white;
       cursor: pointer;
-      font-size: 12px;
     }
-    button.detail-btn:hover { background: #2980b9; }
 
-    /* Popup */
+    /* Modal */
     #detailModal {
       display: none;
       position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       background: rgba(0,0,0,0.7);
       align-items: center;
       justify-content: center;
       z-index: 1000;
     }
     .modal-content {
-      background: #1e272e;
-      border-radius: 12px;
-      padding: 20px;
-      max-width: 400px;
+      background: #2f3640;
+      border-radius: 10px;
+      padding: 15px;
       width: 90%;
-      box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+      max-width: 500px;
       color: #fff;
-      animation: fadeIn 0.3s ease;
     }
-    .modal-content h3 { margin-top: 0; text-align: center; color: #00f2fe; }
-    .modal-content p { margin: 6px 0; font-size: 14px; }
+    .modal-content h3 {
+      text-align: center;
+      margin-top: 0;
+      color: #00f2fe;
+    }
+    .modal-content p { font-size: 14px; margin: 4px 0; }
     .close-btn {
       background: #e74c3c;
       color: white;
       border: none;
       padding: 8px;
-      border-radius: 8px;
-      cursor: pointer;
+      border-radius: 6px;
       margin-top: 10px;
+      cursor: pointer;
       width: 100%;
-    }
-    @keyframes fadeIn {
-      from {opacity: 0; transform: translateY(-20px);}
-      to {opacity: 1; transform: translateY(0);}
     }
   </style>
 </head>
 <body>
-
   <h2>📜 Lịch sử thay đổi hệ thống</h2>
-  <input type="text" id="search" placeholder="🔍 Tìm theo UserID, Admin, Hành động...">
-
-  <div class="table-container">
+  <input type="text" id="search" placeholder="🔍 Tìm theo UserID, hành động, actor...">
+  <div class="history-container">
     <table>
       <thead>
         <tr>
-          <th>UserID</th>
-          <th>Admin</th>
+          <th>Người thao tác</th>
           <th>Hành động</th>
+          <th>UserID mục tiêu</th>
           <th>Thời gian</th>
           <th>Chi tiết</th>
         </tr>
       </thead>
-      <tbody id="historyBody">
+      <tbody id="logBody">
         <tr><td colspan="5">Đang tải...</td></tr>
       </tbody>
     </table>
   </div>
 
-  <!-- Popup chi tiết -->
+  <!-- Modal chi tiết -->
   <div id="detailModal">
     <div class="modal-content">
-      <h3>Chi tiết hành động</h3>
+      <h3>Chi tiết Log</h3>
       <div id="detailContent"></div>
       <button class="close-btn" onclick="closeModal()">Đóng</button>
     </div>
   </div>
 
   <script>
-    let historyList = [];
+    let logs = [];
 
-    async function loadHistory() {
-      try {
-        const res = await fetch('/api/history');
-        historyList = await res.json();
-        renderTable(historyList);
-      } catch (err) {
-        document.getElementById('historyBody').innerHTML =
-          '<tr><td colspan="5">Lỗi tải dữ liệu</td></tr>';
-      }
+    async function loadLogs() {
+      const res = await fetch('/admin/logs');
+      logs = await res.json();
+      renderTable(logs);
     }
 
     function renderTable(data) {
-      const tbody = document.getElementById('historyBody');
+      const tbody = document.getElementById('logBody');
       tbody.innerHTML = '';
-
       if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5">Chưa có lịch sử</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5">Chưa có log nào</td></tr>';
         return;
       }
-
-      data.forEach(h => {
+      data.forEach(log => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${h.userId || '-'}</td>
-          <td>${h.admin}</td>
-          <td>${h.action}</td>
-          <td>${new Date(h.createdAt).toLocaleString()}</td>
-          <td><button class="detail-btn" onclick='openDetail(${JSON.stringify(h)})'>Xem</button></td>
+          <td>${log.actor}</td>
+          <td>${log.action}</td>
+          <td>${log.targetUserId || '-'}</td>
+          <td>${new Date(log.createdAt).toLocaleString()}</td>
+          <td><button class="detail-btn" onclick='openDetail(${JSON.stringify(log)})'>Chi tiết</button></td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    function openDetail(h) {
-      const details = JSON.stringify(h.details, null, 2)
-                        .replace(/\\n/g,'<br>')
-                        .replace(/ /g,'&nbsp;');
-      document.getElementById('detailContent').innerHTML = `
-        <p><b>UserID:</b> ${h.userId || '-'}</p>
-        <p><b>Admin:</b> ${h.admin}</p>
-        <p><b>Hành động:</b> ${h.action}</p>
-        <p><b>Thời gian:</b> ${new Date(h.createdAt).toLocaleString()}</p>
-        <p><b>Chi tiết:</b><br><pre style="background:#111;padding:8px;border-radius:6px;color:#0f0;font-size:12px;">${details}</pre></p>
+    function openDetail(log) {
+      const detailHTML = `
+        <p><b>Người thao tác:</b> ${log.actor}</p>
+        <p><b>Hành động:</b> ${log.action}</p>
+        <p><b>UserID mục tiêu:</b> ${log.targetUserId || '-'}</p>
+        <p><b>IP:</b> ${log.ip || '-'}</p>
+        <p><b>Thiết bị:</b> ${log.userAgent || '-'}</p>
+        <p><b>Thời gian:</b> ${new Date(log.createdAt).toLocaleString()}</p>
+        <p><b>Dữ liệu cũ:</b> <pre>${JSON.stringify(log.oldData || {}, null, 2)}</pre></p>
+        <p><b>Dữ liệu mới:</b> <pre>${JSON.stringify(log.newData || {}, null, 2)}</pre></p>
       `;
+      document.getElementById('detailContent').innerHTML = detailHTML;
       document.getElementById('detailModal').style.display = 'flex';
     }
 
@@ -181,18 +169,15 @@
 
     document.getElementById('search').addEventListener('input', e => {
       const kw = e.target.value.toLowerCase();
-      const filtered = historyList.filter(h =>
-        (h.userId || '').toLowerCase().includes(kw) ||
-        h.admin.toLowerCase().includes(kw) ||
-        h.action.toLowerCase().includes(kw)
+      const filtered = logs.filter(l =>
+        (l.actor || '').toLowerCase().includes(kw) ||
+        (l.action || '').toLowerCase().includes(kw) ||
+        (l.targetUserId || '').toLowerCase().includes(kw)
       );
       renderTable(filtered);
     });
 
-    loadHistory();
+    loadLogs();
   </script>
-
 </body>
 </html>
-
-
