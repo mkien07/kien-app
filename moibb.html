@@ -17,8 +17,8 @@
       padding-bottom: 80px;
     }
     @keyframes gradientBG {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
       100% { background-position: 0% 50%; }
     }
     .container {
@@ -40,7 +40,11 @@
       box-shadow: 0 0 10px rgba(0,0,0,0.3);
       text-align: left;
     }
-    .box p { font-size: 15px; margin: 8px 0; color: #ccc; }
+    .box p {
+      font-size: 15px;
+      margin: 8px 0;
+      color: #ccc;
+    }
     input[type="text"] {
       width: 100%;
       padding: 10px;
@@ -61,7 +65,9 @@
       border-radius: 6px;
       cursor: pointer;
     }
-    button:hover { background-color: #1abc9c; }
+    button:hover {
+      background-color: #1abc9c;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -73,7 +79,9 @@
       color: #eee;
       font-size: 14px;
     }
-    th { background-color: rgba(255,255,255,0.1); }
+    th {
+      background-color: rgba(255,255,255,0.1);
+    }
 
     .bottom-nav {
       position: fixed;
@@ -107,9 +115,17 @@
       margin-bottom: 2px;
       transition: transform 0.3s ease;
     }
-    .nav-item.active { color: #00f2fe; font-weight: bold; }
-    .nav-item.active span.icon { transform: scale(1.2); color: #1abc9c; }
-    .nav-item:hover { color: #1abc9c; }
+    .nav-item.active {
+      color: #00f2fe;
+      font-weight: bold;
+    }
+    .nav-item.active span.icon {
+      transform: scale(1.2);
+      color: #1abc9c;
+    }
+    .nav-item:hover {
+      color: #1abc9c;
+    }
   </style>
 </head>
 <body>
@@ -126,7 +142,16 @@
     <div class="box">
       <p><strong>Danh sách người đã mời:</strong></p>
       <table id="refTable">
-        <thead><tr><th>Username</th><th>Ngày đăng ký</th></tr></thead>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Username</th>
+            <th>VIP</th>
+            <th>Cấp Ref</th>
+            <th>Ngày đăng ký</th>
+            <th>Hoa hồng</th>
+          </tr>
+        </thead>
         <tbody></tbody>
       </table>
     </div>
@@ -153,27 +178,38 @@
     }
 
     async function loadData() {
+      // Lấy mã giới thiệu và link
       try {
         const res1 = await fetch('/my/account');
-        const data = await res1.json();
-        if (!data.userId) throw new Error();
-        document.getElementById('myId').textContent = data.userId;
-        document.getElementById('refLink').value = location.origin + '/reg.html?ref=' + data.userId;
+        const info = await res1.json();
+        if (!info.userId) throw new Error();
+        document.getElementById('myId').textContent = info.userId;
+        document.getElementById('refLink').value =
+          location.origin + '/reg.html?ref=' + info.userId;
       } catch {
         Swal.fire('Lỗi', 'Không lấy được mã giới thiệu', 'error');
       }
 
+      // Lấy danh sách referrals
       try {
         const res2 = await fetch('/my/referrals');
-        const data = await res2.json();
+        const { referrals } = await res2.json();
         const tbody = document.querySelector('#refTable tbody');
         tbody.innerHTML = '';
-        if (!data.referrals || data.referrals.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="2">Chưa có ai được mời</td></tr>';
+
+        if (!referrals.length) {
+          tbody.innerHTML = '<tr><td colspan="6">Chưa có ai được mời</td></tr>';
         } else {
-          data.referrals.forEach(u => {
+          referrals.forEach(u => {
             const row = document.createElement('tr');
-            row.innerHTML = `<td>${u.username}</td><td>${new Date(u.createdAt).toLocaleDateString()}</td>`;
+            row.innerHTML = `
+              <td>${u.userId}</td>
+              <td>${u.username}</td>
+              <td>${u.vipLevel || '-'}</td>
+              <td>F${u.level}</td>
+              <td>${new Date(u.registeredAt).toLocaleDateString()}</td>
+              <td>${u.totalCommission.toLocaleString()} đ</td>
+            `;
             tbody.appendChild(row);
           });
         }
@@ -184,11 +220,13 @@
 
     function copyLink() {
       const input = document.getElementById('refLink');
-      navigator.clipboard.writeText(input.value).then(() => {
-        Swal.fire('📋 Đã sao chép', 'Link mời đã được lưu vào clipboard!', 'success');
-      }).catch(() => {
-        Swal.fire('Lỗi', 'Không thể sao chép link', 'error');
-      });
+      navigator.clipboard.writeText(input.value)
+        .then(() => {
+          Swal.fire('📋 Đã sao chép', 'Link mời đã được lưu vào clipboard!', 'success');
+        })
+        .catch(() => {
+          Swal.fire('Lỗi', 'Không thể sao chép link', 'error');
+        });
     }
 
     loadData();

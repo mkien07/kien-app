@@ -3,6 +3,10 @@ const mongoose = require('mongoose');
 const session = require('express-session');
 const path = require('path');
 const cron = require('node-cron');
+const User = require('./models/User');
+const CommissionLog = require('./models/CommissionLog');
+const requireLogin = require('./middlewares/requireLogin');
+
 
 const app = express();
 app.set('trust proxy', true);
@@ -675,19 +679,50 @@ app.post('/my/set-inviter', requireLogin, async (req, res) => {
 // route ds ng đã mời 
 app.get('/my/referrals', requireLogin, async (req, res) => {
   try {
-    const currentUser = await User.findById(req.user._id);
-    const referrals = await User.find({ inviterId: currentUser.userId });
+    const me = req.session.user.userId;
 
-    res.json({
-      referrals: referrals.map(u => ({
-        username: u.username,
-        createdAt: u.createdAt,
-      }))
-    });
+    // Lấy F1
+    const f1 = await User.find({ inviterId: me })
+                         .select('userId username vipLevel registeredAt')
+                         .lean();
+    const f1Ids = f1.map(u => u.userId);
+
+    // Lấy F2
+    const f2 = await User.find({ inviterId: { $in: f1Ids } })
+                         .select('userId username vipLevel registeredAt')
+                         .lean();
+    const f2Ids = f2.map(u => u.userId);
+
+    // Lấy F3
+    const f3 = await User.find({ inviterId: { $in: f2Ids } })
+                         .select('userId username vipLevel registeredAt')
+                         .lean();
+
+    // Gộp và gán cấp độ
+    const allRefs = [
+      ...f1.map(u => ({ ...u, level: 1 })),
+      ...f2.map(u => ({ ...u, level: 2 })),
+      ...f3.map(u => ({ ...u, level: 3 }))
+    ];
+
+    // Tính tổng hoa hồng từ mỗi referral
+    const referrals = await Promise.all(allRefs.map(async u => {
+      const logs = await CommissionLog.find({
+        fromUserId: u.userId,
+        toUserId: me
+      }).lean();
+
+      const totalCommission = logs.reduce((sum, x) => sum + x.amount, 0);
+      return { ...u, totalCommission };
+    }));
+
+    return res.json({ referrals });
   } catch (err) {
-    res.status(500).json({ error: 'Không thể tải danh sách người được mời' });
+    console.error('Error /my/referrals:', err);
+    return res.status(500).json({ error: 'Không thể tải danh sách referrals' });
   }
 });
+
 
 // ✅ API: Lịch sử log cho histori.html
 app.get('/admin/logs', async (req, res) => {
