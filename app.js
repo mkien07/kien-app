@@ -318,6 +318,17 @@ app.delete('/admin/investments/:userId', async (req, res) => {
   }
 
   const result = await Investment.deleteMany({ userId: req.params.userId });
+
+  await new Log({
+    actor: u.username,
+    action: 'Xóa toàn bộ gói đầu tư',
+    targetUserId: req.params.userId,
+    oldData: { investmentCount: result.deletedCount },
+    newData: {},
+    ip: req.ip,
+    userAgent: req.headers['user-agent']
+  }).save();
+
   res.send(`Đã xóa ${result.deletedCount} gói đầu tư`);
 });
 
