@@ -310,6 +310,20 @@ app.get('/api/investments', async (req, res) => {
   res.json(list);
 });
 
+// ✅ Admin API: Lấy danh sách gói đầu tư của user
+app.get('/my/investments', async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ error: 'Bạn chưa đăng nhập' });
+  }
+
+  try {
+    const list = await Investment.find({ userId: req.session.user.userId }).sort({ createdAt: -1 });
+    res.json(list);
+  } catch (err) {
+    res.status(500).json({ error: 'Lỗi server khi truy xuất dữ liệu đầu tư' });
+  }
+});
+
 // ✅ Admin API: Xóa gói đầu tư
 app.delete('/admin/investments/:userId', async (req, res) => {
   const u = req.session.user;
