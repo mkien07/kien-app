@@ -258,32 +258,42 @@
       });
     }
 
-    function deleteInvestments() {
-      const userId = document.getElementById('modalUserId').value;
-      if (confirm('Bạn có chắc muốn xóa tất cả gói đầu tư của user này?')) {
-        fetch(`/admin/investments/${userId}`, { method: 'DELETE' })
-          .then(res => {
-            if (res.ok) {
+   function deleteInvestments() {
+  const userId = document.getElementById('modalUserId').value;
+
+  Swal.fire({
+    title: 'Bạn có chắc muốn xóa?',
+    text: 'Thao tác này sẽ xóa toàn bộ gói đầu tư của user!',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Xóa',
+    cancelButtonText: 'Hủy'
+  }).then(result => {
+    if (result.isConfirmed) {
+      fetch(`/admin/investments/${userId}`, { method: 'DELETE' })
+        .then(res => {
+          if (res.ok) {
             Swal.fire({
-         icon: 'success',
-            title: '✅ Thành công!',
-          text: 'Đã xóa toàn bộ gói đầu tư của user này.',
-          confirmButtonText: 'OK'
-       }).then(() => {
-          closeModal();
-          loadUsers();
-       });
+              icon: 'success',
+              title: '✅ Thành công!',
+              text: 'Đã xóa toàn bộ gói đầu tư của user này.',
+              confirmButtonText: 'OK'
+            }).then(() => {
+              closeModal();
+              loadUsers();
+            });
           } else {
-         Swal.fire({
-         icon: 'error',
-      title: '❌ Lỗi hệ thống!',
-         text: 'Không thể xóa gói đầu tư. Vui lòng thử lại sau.',
-             confirmButtonText: 'OK'
+            Swal.fire({
+              icon: 'error',
+              title: '❌ Lỗi hệ thống!',
+              text: 'Không thể xóa gói đầu tư. Vui lòng thử lại sau.',
+              confirmButtonText: 'OK'
+            });
+          }
         });
-      }
-          });
-      }
     }
+  });
+}
 
     document.getElementById('search').addEventListener('input', e => {
       const kw = e.target.value.toLowerCase();
