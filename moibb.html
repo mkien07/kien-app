@@ -40,11 +40,7 @@
       box-shadow: 0 0 10px rgba(0,0,0,0.3);
       text-align: left;
     }
-    .box p {
-      font-size: 15px;
-      margin: 8px 0;
-      color: #ccc;
-    }
+    .box p { font-size: 15px; margin: 8px 0; color: #ccc; }
     input[type="text"] {
       width: 100%;
       padding: 10px;
@@ -65,9 +61,7 @@
       border-radius: 6px;
       cursor: pointer;
     }
-    button:hover {
-      background-color: #1abc9c;
-    }
+    button:hover { background-color: #1abc9c; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -79,11 +73,8 @@
       color: #eee;
       font-size: 14px;
     }
-    th {
-      background-color: rgba(255,255,255,0.1);
-    }
+    th { background-color: rgba(255,255,255,0.1); }
 
-    /* ✅ Nav giống goicuatoi.html */
     .bottom-nav {
       position: fixed;
       bottom: 0;
@@ -165,6 +156,7 @@
       try {
         const res1 = await fetch('/my/account');
         const data = await res1.json();
+        if (!data.userId) throw new Error();
         document.getElementById('myId').textContent = data.userId;
         document.getElementById('refLink').value = location.origin + '/reg.html?ref=' + data.userId;
       } catch {
@@ -175,7 +167,8 @@
         const res2 = await fetch('/my/referrals');
         const data = await res2.json();
         const tbody = document.querySelector('#refTable tbody');
-        if (data.referrals.length === 0) {
+        tbody.innerHTML = '';
+        if (!data.referrals || data.referrals.length === 0) {
           tbody.innerHTML = '<tr><td colspan="2">Chưa có ai được mời</td></tr>';
         } else {
           data.referrals.forEach(u => {
@@ -191,10 +184,11 @@
 
     function copyLink() {
       const input = document.getElementById('refLink');
-      input.select();
-      input.setSelectionRange(0, 99999);
-      document.execCommand('copy');
-      Swal.fire('📋 Đã sao chép', 'Link mời đã được lưu vào clipboard!', 'success');
+      navigator.clipboard.writeText(input.value).then(() => {
+        Swal.fire('📋 Đã sao chép', 'Link mời đã được lưu vào clipboard!', 'success');
+      }).catch(() => {
+        Swal.fire('Lỗi', 'Không thể sao chép link', 'error');
+      });
     }
 
     loadData();
