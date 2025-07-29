@@ -206,54 +206,70 @@ app.get('/register', (req, res) => {
   res.redirect('/reg.html');
 });
 
+// =====================
+// ROUTES: ĐĂNG KÝ VỚI LINK MỜI
+// =====================
+
+// 1. GET /reg.html
+//    Lưu mã ref (nếu có) vào session trước khi trả file reg.html
+app.get('/reg.html', async (req, res, next) => {
+  const { ref } = req.query;
+  if (ref) {
+    const inviter = await User.findOne({ userId: ref }).lean();
+    req.session.refUserId = inviter ? ref : null;
+  }
+  if (req.session.user) {
+    return res.redirect('/menu.html');
+  }
+  next(); // express.static sẽ phục vụ reg.html
+});
+
+// 2. GET /register
+//    Nếu ai truy cập GET /register thì redirect về reg.html
+app.get('/register', (req, res) => {
+  if (req.session.user) {
+    return res.redirect('/menu.html');
+  }
+  res.redirect('/reg.html');
+});
+
+// 3. POST /register
+//    Xử lý tạo tài khoản, gắn inviter nếu có
 app.post('/register', async (req, res) => {
-  // Lấy dữ liệu từ form
   const { username, email, phone, password } = req.body;
-  // Lấy inviterId (nếu có) từ query trước đó
   const inviterId = req.session.refUserId || null;
 
-  // Không cho tự mời chính mình
   if (inviterId === username) {
     return res.status(400).send('Không thể tự mời chính mình');
   }
 
   try {
-    // 1. Kiểm tra trùng username hoặc email
-    const exists = await User.findOne({
-      $or: [{ username }, { email }]
-    });
+    // Kiểm tra trùng username/email
+    const exists = await User.findOne({ $or: [{ username }, { email }] });
     if (exists) {
       return res.status(409).send('Tên hoặc email đã tồn tại');
     }
 
-    // 2. Tạo user mới
+    // Tạo user mới
     const now = new Date();
     const newUser = new User({
-      userId: Math.floor(100000 + Math.random() * 900000).toString(),
-      username,
-      email,
-      phone,
-      password,
-      registeredAt: now,
-      lastLogin:   now,
-      ipRegister:  req.ip,
-      ipLogin:     req.ip,
-      userAgent:   req.headers['user-agent'],
+      userId:      Math.floor(100000 + Math.random() * 900000).toString(),
+      username, email, phone, password,
+      registeredAt: now, lastLogin: now,
+      ipRegister: req.ip, ipLogin: req.ip,
+      userAgent:  req.headers['user-agent'],
       inviterId
     });
     await newUser.save();
 
-    // 3. Lưu log Invite nếu có mời
+    // Lưu log mời (nếu có)
     if (inviterId) {
-      await new InviteLog({
-        userId:    newUser.userId,
-        inviterId
-      }).save();
+      await new InviteLog({ userId: newUser.userId, inviterId }).save();
     }
-    // Reset inviterId trong session để tránh dùng lại
+    // Xóa ref khỏi session
     req.session.refUserId = null;
 
-    // 4. Lưu log Đăng ký
+    // Lưu log đăng ký
     await new Log({
       actor:        username,
       action:       'Đăng ký tài khoản',
@@ -262,7 +278,7 @@ app.post('/register', async (req, res) => {
       userAgent:    req.headers['user-agent']
     }).save();
 
-    // 5. Thiết lập session và redirect vào menu
+    // Thiết lập session và redirect
     req.session.user = newUser;
     return res.redirect('/menu.html');
 
