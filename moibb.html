@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>👥 Mời bạn bè</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      background: linear-gradient(-45deg, #1b2735, #090a0f, #2c3e50, #000);
+      background-size: 400% 400%;
+      animation: gradientBG 20s ease infinite;
+      min-height: 100vh;
+      color: white;
+      padding-bottom: 80px;
+    }
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .container {
+      max-width: 480px;
+      margin: auto;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      font-weight: 600;
+      color: #00f2fe;
+      margin-bottom: 20px;
+    }
+    .box {
+      background: rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 15px;
+      text-align: left;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
+    .box p {
+      font-size: 14px;
+      color: #ccc;
+      margin: 6px 0;
+    }
+    .invite-link {
+      background: #34495e;
+      padding: 10px;
+      border-radius: 6px;
+      color: #00f2fe;
+      font-weight: bold;
+      word-break: break-word;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      justify-content: space-around;
+      background: rgba(10, 15, 30, 0.7);
+      backdrop-filter: blur(15px);
+      color: #bbb;
+      padding: 8px 0;
+      border-radius: 18px 18px 0 0;
+      box-shadow: 0 -2px 15px rgba(0,0,0,0.6);
+      font-size: 14px;
+      z-index: 1000;
+    }
+    .nav-item {
+      flex: 1;
+      text-align: center;
+      cursor: pointer;
+      padding: 4px 0;
+      color: #ccc;
+      transition: all 0.3s ease;
+    }
+    .nav-item span.icon {
+      display: block;
+      font-size: 22px;
+      margin-bottom: 2px;
+      transition: transform 0.3s ease;
+    }
+    .nav-item.active { color: #00f2fe; font-weight: bold; }
+    .nav-item.active span.icon { transform: scale(1.2); color: #1abc9c; }
+    .nav-item:hover { color: #1abc9c; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>👥 Mời bạn bè</h1>
+
+    <div class="box">
+      <p>📌 Mã giới thiệu của bạn:</p>
+      <p class="invite-link" id="refCode">Đang tải...</p>
+      <p>📲 Sao chép liên kết mời bạn bè:</p>
+      <p class="invite-link" id="refLink">...</p>
+    </div>
+
+    <div class="box">
+      <p>👨‍👦 Bạn đã mời:</p>
+      <div id="refList">Đang tải danh sách...</div>
+    </div>
+
+    <div class="box" id="mgtBox" style="display:none;">
+      <p>🎯 Nhập mã người mời (chỉ 1 lần):</p>
+      <input type="text" id="mgtInput" placeholder="Nhập userId cấp trên..." style="width:100%; padding:8px; border-radius:6px; border:none; margin-bottom:10px;">
+      <button onclick="submitMGT()" style="width:100%; padding:10px; background:#1abc9c; color:white; border:none; border-radius:6px; font-weight:bold;">Xác nhận</button>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <div class="nav-item" onclick="navigate('trangchu.html')">
+      <span class="icon">🏠</span>Trang chủ
+    </div>
+    <div class="nav-item" onclick="navigate('dautu.html')">
+      <span class="icon">📊</span>Đầu tư
+    </div>
+    <div class="nav-item active" onclick="navigate('moibb.html')">
+      <span class="icon">👥</span>Mời bạn bè
+    </div>
+    <div class="nav-item" onclick="navigate('menu.html')">
+      <span class="icon">👤</span>Tôi
+    </div>
+  </div>
+
+  <script>
+    function navigate(url) {
+      window.location.href = url;
+    }
+
+    fetch('/my/account')
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('refCode').innerText = data.userId || 'Không có mã';
+        const link = window.location.origin + '/register.html?ref=' + (data.userId || '');
+        document.getElementById('refLink').innerText = link;
+
+        if (!data.inviterId) {
+          document.getElementById('mgtBox').style.display = 'block';
+        } else {
+          document.getElementById('mgtBox').innerHTML = `
+            <p>✅ Bạn đã nhập mã người mời: <span style="color:#00f2fe; font-weight:bold;">${data.inviterId}</span></p>
+          `;
+          document.getElementById('mgtBox').style.display = 'block';
+        }
+
+        fetch('/my/referrals')
+          .then(res => res.json())
+          .then(refData => {
+            const refList = document.getElementById('refList');
+            if (!refData.referrals || refData.referrals.length === 0) {
+              refList.innerText = 'Bạn chưa mời ai.';
+            } else {
+              refList.innerHTML = refData.referrals.map(u => `
+                <p>- ${u.username} (${new Date(u.createdAt).toLocaleDateString()})</p>
+              `).join('');
+            }
+          });
+      });
+
+    function submitMGT() {
+      const mgtValue = document.getElementById('mgtInput').value.trim();
+      if (!mgtValue) {
+        Swal.fire('⚠️ Vui lòng nhập mã!');
+        return;
+      }
+
+      fetch('/my/set-inviter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inviterId: mgtValue })
+      })
+      .then(res => {
+        if (res.ok) {
+          Swal.fire('🎉 Mã người mời đã được ghi nhận!');
+          document.getElementById('mgtBox').innerHTML = `
+            <p>✅ Bạn đã nhập mã người mời: <span style="color:#00f2fe; font-weight:bold;">${mgtValue}</span></p>
+          `;
+        } else {
+          throw new Error();
+        }
+      })
+      .catch(() => {
+        Swal.fire('❌ Không thể ghi nhận mã!');
+      });
+    }
+  </script>
+</body>
+</html>

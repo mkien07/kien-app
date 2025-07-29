@@ -95,6 +95,24 @@ const investSchema = new mongoose.Schema({
 });
 const Investment = mongoose.model('Investment', investSchema);
 
+// ✨ Lưu log ai mời ai
+const inviteLogSchema = new mongoose.Schema({
+  userId: String,        // Người vừa nhập mã
+  inviterId: String,     // Người mời
+  timestamp: { type: Date, default: Date.now }
+});
+const InviteLog = mongoose.model('InviteLog', inviteLogSchema);
+
+// ✨ Lưu hoa hồng đã trả
+const commissionLogSchema = new mongoose.Schema({
+  fromUserId: String,    // Người nạp tiền
+  toUserId: String,      // Người nhận hoa hồng
+  sourceAmount: Number,  // Số tiền gốc nạp
+  amount: Number,        // Hoa hồng đã trả
+  timestamp: { type: Date, default: Date.now }
+});
+const CommissionLog = mongoose.model('CommissionLog', commissionLogSchema);
+
 // =====================
 // MIDDLEWARE
 // =====================
@@ -476,13 +494,40 @@ app.put('/admin/user/:userId', async (req, res) => {
   };
 
   if (req.body.balance !== undefined && req.body.balance !== oldData.balance) {
-    const diff = req.body.balance - oldData.balance;
-    await new Deposit({
-      userId: user.userId,
-      amount: Math.abs(diff),
-      note: diff > 0 ? 'Admin cộng tiền' : 'Admin trừ tiền'
-    }).save();
+  const diff = req.body.balance - oldData.balance;
+
+  await new Deposit({
+    userId: user.userId,
+    amount: Math.abs(diff),
+    note: diff > 0 ? 'Admin cộng tiền' : 'Admin trừ tiền'
+  }).save();
+
+  // 🎁 Cộng hoa hồng nếu user có cấp trên và admin đang cộng tiền
+  if (diff > 0 && user.inviterId) {
+    const inviter = await User.findOne({ userId: user.inviterId });
+    if (inviter) {
+      const commission = Math.round(diff * 0.1); // 10%
+      inviter.balance += commission;
+      await inviter.save();
+
+      await new CommissionLog({
+        fromUserId: user.userId,
+        toUserId: inviter.userId,
+        sourceAmount: diff,
+        amount: commission
+      }).save();
+
+      await new Log({
+        actor: 'Hệ thống',
+        action: 'Cộng hoa hồng 10% từ cấp dưới',
+        targetUserId: inviter.userId,
+        newData: { hoaHong: commission },
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+      }).save();
+    }
   }
+}
 
   await new Log({
     actor: u.username,
@@ -495,6 +540,77 @@ app.put('/admin/user/:userId', async (req, res) => {
   }).save();
 
   res.send('Đã cập nhật user');
+});
+
+// ai đã mang hh cho mình :)))
+app.get('/my/commission-log', authMiddleware, async (req, res) => {
+  const logs = await CommissionLog.find({ toUserId: req.session.user.userId }).sort({ timestamp: -1 });
+  res.json(logs);
+});
+
+// route cho mời bb
+app.get('/my/account', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    res.json({
+      userId: user.userId,
+      inviterId: user.inviterId || null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Không thể lấy thông tin người dùng' });
+  }
+});
+
+// route nhập mã mời 
+app.post('/my/set-inviter', authMiddleware, async (req, res) => {
+  const inviterId = req.body.inviterId?.trim();
+  if (!inviterId) return res.status(400).json({ error: 'Thiếu mã người mời' });
+
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (user.inviterId) {
+      return res.status(400).json({ error: 'Bạn đã nhập mã mời rồi' });
+    }
+    if (user.userId === inviterId) {
+      return res.status(400).json({ error: 'Không thể mời chính mình' });
+    }
+
+    const inviter = await User.findOne({ userId: inviterId });
+    if (!inviter) {
+      return res.status(400).json({ error: 'Mã người mời không tồn tại' });
+    }
+
+    user.inviterId = inviterId;
+    await user.save();
+
+    // Lưu log mời bạn bè
+    await new InviteLog({
+      userId: user.userId,
+      inviterId
+    }).save();
+
+    res.status(200).json({ message: 'Đã ghi nhận mã mời & lưu log' });
+  } catch (err) {
+    res.status(500).json({ error: 'Lỗi ghi nhận mã mời' });
+  }
+});
+
+// route ds ng đã mời 
+app.get('/my/referrals', authMiddleware, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.user._id);
+    const referrals = await User.find({ inviterId: currentUser.userId });
+
+    res.json({
+      referrals: referrals.map(u => ({
+        username: u.username,
+        createdAt: u.createdAt,
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Không thể tải danh sách người được mời' });
+  }
 });
 
 // ✅ API: Lịch sử log cho histori.html
