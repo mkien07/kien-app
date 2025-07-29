@@ -311,7 +311,7 @@ app.get('/api/investments', async (req, res) => {
 });
 
 // ✅ Admin API: Xóa gói đầu tư
-app.delete('/admin/investment/:id', async (req, res) => {
+app.delete('/admin/investments/:id', async (req, res) => {
   const u = req.session.user;
   if (!u || !['admin','qtv'].includes(u.role)) return res.status(403).send('Không có quyền');
   await Investment.findByIdAndDelete(req.params.id);
