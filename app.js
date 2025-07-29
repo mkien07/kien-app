@@ -255,19 +255,28 @@ app.get('/api/deposits', async (req, res) => {
   res.json(list);
 });
 
-// ✅ ĐẦU TƯ
+// ✅ ĐẦU TƯ (chỉ 1 gói hoạt động mỗi lần)
 app.post('/invest', async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Chưa đăng nhập' });
+
   const { plan } = req.body;
   const user = await User.findOne({ userId: req.session.user.userId });
   if (!user) return res.status(404).json({ error: 'User không tồn tại' });
+
+  // Kiểm tra nếu user đã có gói đang hoạt động
+  const activeInvestment = await Investment.findOne({ userId: user.userId, status: 'active' });
+  if (activeInvestment) {
+    return res.status(400).json({ error: 'Bạn đã có gói đầu tư đang hoạt động. Vui lòng chờ kết thúc gói hiện tại.' });
+  }
 
   let amount, rate, days;
   if (plan === '100000') { amount = 100000; rate = 0.4; days = 3; }
   else if (plan === '300000') { amount = 300000; rate = 0.3; days = 4; }
   else return res.status(400).json({ error: 'Gói không hợp lệ' });
 
-  if (user.balance < amount) return res.status(400).json({ error: 'Số dư không đủ' });
+  if (user.balance < amount) {
+    return res.status(400).json({ error: 'Số dư không đủ để đầu tư gói này.' });
+  }
 
   user.balance -= amount;
   user.investment += amount;
@@ -275,7 +284,8 @@ app.post('/invest', async (req, res) => {
 
   await new Investment({
     userId: user.userId,
-    package: plan, amount,
+    package: plan,
+    amount,
     profitRate: rate,
     days,
     lastProfitAt: new Date()
@@ -309,7 +319,7 @@ app.delete('/admin/investment/:id', async (req, res) => {
 });
 
 // ✅ Cronjob cộng lãi (fix lỗi nhiều gói cùng user)
-cron.schedule('0 * * * *', async () => {
+cron.schedule('0,30 * * * *', async () => {
   const now = new Date();
   const activeInvestments = await Investment.find({ status: 'active' });
 
