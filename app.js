@@ -565,7 +565,10 @@ app.get('/my/commission-log', requireLogin, async (req, res) => {
 // route cho mời bb
 app.get('/my/account', requireLogin, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const sUser = req.session.user;
+    const user = await User.findOne({ userId: sUser.userId });
+    if (!user) return res.status(404).json({ error: 'Không tìm thấy user' });
+
     res.json({
       userId: user.userId,
       inviterId: user.inviterId || null,
