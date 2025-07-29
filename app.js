@@ -193,40 +193,83 @@ app.post('/login', async (req, res) => {
 });
 
 // REGISTER
+// ——————————————
+// ĐĂNG KÝ NGƯỜI DÙNG
+// ——————————————
+
+// Nếu ai thử GET /register thì chuyển về trang reg.html
+app.get('/register', (req, res) => {
+  // Nếu đã login → chuyển về menu luôn
+  if (req.session.user) {
+    return res.redirect('/menu.html');
+  }
+  res.redirect('/reg.html');
+});
+
 app.post('/register', async (req, res) => {
-  if (inviterId === username) {
-  return res.status(400).send('Không thể tự mời chính mình');
- }
+  // Lấy dữ liệu từ form
   const { username, email, phone, password } = req.body;
+  // Lấy inviterId (nếu có) từ query trước đó
   const inviterId = req.session.refUserId || null;
-  if (await User.findOne({ $or:[{username},{email}] })) {
-    return res.status(409).send('Tên hoặc email đã tồn tại');
-  }
-  const now = new Date();
-  const newUser = new User({
-    userId: Math.floor(100000 + Math.random() * 900000).toString(),
-    username, email, phone, password,
-    registeredAt: now, lastLogin: now,
-    ipRegister: req.ip, ipLogin: req.ip,
-    userAgent: req.headers['user-agent'],
-    inviterId
-  });
-  await newUser.save();
-  if (inviterId) {
-  await new InviteLog({ userId: newUser.userId, inviterId }).save();
-  }
-  req.session.refUserId = null;
 
-  await new Log({
-    actor: username,
-    action: 'Đăng ký tài khoản',
-    targetUserId: newUser.userId,
-    ip: req.ip,
-    userAgent: req.headers['user-agent']
-  }).save();
+  // Không cho tự mời chính mình
+  if (inviterId === username) {
+    return res.status(400).send('Không thể tự mời chính mình');
+  }
 
-  req.session.user = newUser;
-  res.redirect('/menu.html');
+  try {
+    // 1. Kiểm tra trùng username hoặc email
+    const exists = await User.findOne({
+      $or: [{ username }, { email }]
+    });
+    if (exists) {
+      return res.status(409).send('Tên hoặc email đã tồn tại');
+    }
+
+    // 2. Tạo user mới
+    const now = new Date();
+    const newUser = new User({
+      userId: Math.floor(100000 + Math.random() * 900000).toString(),
+      username,
+      email,
+      phone,
+      password,
+      registeredAt: now,
+      lastLogin:   now,
+      ipRegister:  req.ip,
+      ipLogin:     req.ip,
+      userAgent:   req.headers['user-agent'],
+      inviterId
+    });
+    await newUser.save();
+
+    // 3. Lưu log Invite nếu có mời
+    if (inviterId) {
+      await new InviteLog({
+        userId:    newUser.userId,
+        inviterId
+      }).save();
+    }
+    // Reset inviterId trong session để tránh dùng lại
+    req.session.refUserId = null;
+
+    // 4. Lưu log Đăng ký
+    await new Log({
+      actor:        username,
+      action:       'Đăng ký tài khoản',
+      targetUserId: newUser.userId,
+      ip:           req.ip,
+      userAgent:    req.headers['user-agent']
+    }).save();
+
+    // 5. Thiết lập session và redirect vào menu
+    req.session.user = newUser;
+    return res.redirect('/menu.html');
+
+  } catch (err) {
+    console.error('Register error:', err);
+    return res.status(500).send('Đăng ký thất bại. Vui lòng thử lại sau.');
+  }
 });
 
 // PROFILE
