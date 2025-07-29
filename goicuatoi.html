@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>📦 Gói của tôi</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      background: linear-gradient(-45deg, #1b2735, #090a0f, #2c3e50, #000);
+      background-size: 400% 400%;
+      animation: gradientBG 20s ease infinite;
+      min-height: 100vh;
+      color: white;
+      padding-bottom: 80px;
+    }
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .container {
+      max-width: 480px;
+      margin: auto;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      font-weight: 600;
+      color: #00f2fe;
+      margin-bottom: 20px;
+    }
+    .investment {
+      background: rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 15px;
+      text-align: left;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
+    .investment p {
+      font-size: 14px;
+      margin: 6px 0;
+      color: #ccc;
+    }
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      justify-content: space-around;
+      background: rgba(10, 15, 30, 0.7);
+      backdrop-filter: blur(15px);
+      color: #bbb;
+      padding: 8px 0;
+      border-radius: 18px 18px 0 0;
+      box-shadow: 0 -2px 15px rgba(0,0,0,0.6);
+      font-size: 14px;
+      z-index: 1000;
+    }
+    .nav-item {
+      flex: 1;
+      text-align: center;
+      cursor: pointer;
+      padding: 4px 0;
+      color: #ccc;
+      transition: all 0.3s ease;
+    }
+    .nav-item span.icon {
+      display: block;
+      font-size: 22px;
+      margin-bottom: 2px;
+      transition: transform 0.3s ease;
+    }
+    .nav-item.active { color: #00f2fe; font-weight: bold; }
+    .nav-item.active span.icon { transform: scale(1.2); color: #1abc9c; }
+    .nav-item:hover { color: #1abc9c; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📦 Gói đầu tư của tôi</h1>
+    <div id="list">Đang tải dữ liệu...</div>
+  </div>
+
+  <!-- 🔽 Thanh menu -->
+  <div class="bottom-nav">
+    <div class="nav-item" onclick="navigate('trangchu.html')">
+      <span class="icon">🏠</span>Trang chủ
+    </div>
+    <div class="nav-item" onclick="navigate('dautu.html')">
+      <span class="icon">📊</span>Đầu tư
+    </div>
+    <div class="nav-item" onclick="navigate('moibanbe.html')">
+      <span class="icon">👥</span>Mời bạn bè
+    </div>
+    <div class="nav-item active" onclick="navigate('goicuatoi.html')">
+      <span class="icon">👤</span>Tôi
+    </div>
+  </div>
+
+  <script>
+    function navigate(url) {
+      window.location.href = url;
+    }
+
+    fetch('/my/investments')
+      .then(res => res.json())
+      .then(data => {
+        const list = document.getElementById('list');
+        list.innerHTML = '';
+
+        if (data.length === 0) {
+          list.innerHTML = '<p>🙁 Bạn chưa có gói đầu tư nào</p>';
+          return;
+        }
+
+        data.forEach(g => {
+          const start = new Date(g.lastProfitAt);
+          const now = new Date();
+          const msPerDay = 1000 * 60 * 60 * 24;
+          const daysPassed = Math.floor((now - start) / msPerDay);
+          const percent = Math.min(100, Math.floor((daysPassed / g.days) * 100));
+          const daysLeft = Math.max(0, g.days - daysPassed);
+          const profit = Math.floor(g.amount * (1 + g.profitRate * g.days));
+
+          const div = document.createElement('div');
+          div.className = 'investment';
+          div.innerHTML = `
+            <p><strong>Gói:</strong> Gói ${g.amount.toLocaleString()}đ</p>
+            <p><strong>Ngày tạo:</strong> ${start.toLocaleString()}</p>
+            <p><strong>Trạng thái:</strong> ${g.status === 'finished' ? '✅ Đã hoàn tất' : '⏳ Đang hoạt động'}</p>
+            <p><strong>Đã hoàn thành:</strong> ${percent}%</p>
+            <p><strong>Thời gian còn lại:</strong> ${daysLeft} ngày</p>
+            <p><strong>Lợi nhuận dự kiến:</strong> ${profit.toLocaleString()}đ</p>
+          `;
+          list.appendChild(div);
+        });
+      })
+      .catch(err => {
+        document.getElementById('list').innerHTML = '❌ Không thể tải dữ liệu';
+      });
+  </script>
+</body>
+</html>
