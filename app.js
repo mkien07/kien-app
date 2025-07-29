@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const session = require('express-session');
 const path = require('path');
 const cron = require('node-cron');
-const User = require('./models/User');
+
 
 const app = express();
 app.set('trust proxy', true);
@@ -45,7 +45,7 @@ const userSchema = new mongoose.Schema({
   vipLevel: { type: String, default: 'VIP1' },
   role: { type: String, default: 'user' }
 });
-//const User = mongoose.model('User', userSchema);
+const User = mongoose.model('User', userSchema);
 
 const withdrawSchema = new mongoose.Schema({
   userId: String,
