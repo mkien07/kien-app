@@ -543,13 +543,13 @@ app.put('/admin/user/:userId', async (req, res) => {
 });
 
 // ai đã mang hh cho mình :)))
-app.get('/my/commission-log', authMiddleware, async (req, res) => {
+app.get('/my/commission-log', requireLogin, async (req, res) => {
   const logs = await CommissionLog.find({ toUserId: req.session.user.userId }).sort({ timestamp: -1 });
   res.json(logs);
 });
 
 // route cho mời bb
-app.get('/my/account', authMiddleware, async (req, res) => {
+app.get('/my/account', requireLogin, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     res.json({
@@ -562,7 +562,7 @@ app.get('/my/account', authMiddleware, async (req, res) => {
 });
 
 // route nhập mã mời 
-app.post('/my/set-inviter', authMiddleware, async (req, res) => {
+app.post('/my/set-inviter', requireLogin, async (req, res) => {
   const inviterId = req.body.inviterId?.trim();
   if (!inviterId) return res.status(400).json({ error: 'Thiếu mã người mời' });
 
@@ -597,7 +597,7 @@ app.post('/my/set-inviter', authMiddleware, async (req, res) => {
 });
 
 // route ds ng đã mời 
-app.get('/my/referrals', authMiddleware, async (req, res) => {
+app.get('/my/referrals', requireLogin, async (req, res) => {
   try {
     const currentUser = await User.findById(req.user._id);
     const referrals = await User.find({ inviterId: currentUser.userId });
