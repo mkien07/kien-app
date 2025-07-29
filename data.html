@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> <!-- Thêm SweetAlert2 cho popup -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quản lý tài khoản</title>
@@ -263,12 +264,23 @@
         fetch(`/admin/investments/${userId}`, { method: 'DELETE' })
           .then(res => {
             if (res.ok) {
-              alert('✅ Đã xóa tất cả gói đầu tư');
-              closeModal();
-              loadUsers();
-            } else {
-              alert('❌ Lỗi xóa gói');
-            }
+            Swal.fire({
+         icon: 'success',
+            title: '✅ Thành công!',
+          text: 'Đã xóa toàn bộ gói đầu tư của user này.',
+          confirmButtonText: 'OK'
+       }).then(() => {
+          closeModal();
+          loadUsers();
+       });
+          } else {
+         Swal.fire({
+         icon: 'error',
+      title: '❌ Lỗi hệ thống!',
+         text: 'Không thể xóa gói đầu tư. Vui lòng thử lại sau.',
+             confirmButtonText: 'OK'
+        });
+      }
           });
       }
     }
