@@ -127,17 +127,20 @@
           const daysPassed = Math.floor((now - start) / msPerDay);
           const percent = Math.min(100, Math.floor((daysPassed / g.days) * 100));
           const daysLeft = Math.max(0, g.days - daysPassed);
-          const profit = Math.floor(g.amount * (1 + g.profitRate * g.days));
+          const profit = Math.floor(g.amount * g.profitRate * g.days); // → Tổng nhận về
+          const profitOnly = profit - g.amount; // → Lợi nhuận thật sự
 
           const div = document.createElement('div');
           div.className = 'investment';
           div.innerHTML = `
-            <p><strong>Gói:</strong> Gói ${g.amount.toLocaleString()}đ</p>
-            <p><strong>Ngày tạo:</strong> ${start.toLocaleString()}</p>
+            <p><strong>Gói:</strong> ${g.amount.toLocaleString()}đ</p>
+            <p><strong>Ngày mua:</strong> ${start.toLocaleString()}</p>
             <p><strong>Trạng thái:</strong> ${g.status === 'finished' ? '✅ Đã hoàn tất' : '⏳ Đang hoạt động'}</p>
             <p><strong>Đã hoàn thành:</strong> ${percent}%</p>
             <p><strong>Thời gian còn lại:</strong> ${daysLeft} ngày</p>
-            <p><strong>Lợi nhuận dự kiến:</strong> ${profit.toLocaleString()}đ</p>
+            <p><strong>Lợi nhuận dự kiến:</strong> ${profitOnly.toLocaleString()}đ</p>
+            <p><strong>Tổng nhận:</strong> ${profit.toLocaleString()}đ</p>
+            
           `;
           list.appendChild(div);
         });
