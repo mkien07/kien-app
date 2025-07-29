@@ -4,8 +4,6 @@ const session = require('express-session');
 const path = require('path');
 const cron = require('node-cron');
 const User = require('./models/User');
-const requireLogin = require('./middlewares/requireLogin');
-
 
 const app = express();
 app.set('trust proxy', true);
