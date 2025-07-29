@@ -36,24 +36,54 @@
       background: rgba(255,255,255,0.08);
       border-radius: 12px;
       padding: 15px;
-      margin-bottom: 15px;
-      text-align: left;
+      margin-bottom: 20px;
       box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      text-align: left;
     }
     .box p {
-      font-size: 14px;
+      font-size: 15px;
+      margin: 8px 0;
       color: #ccc;
-      margin: 6px 0;
     }
-    .invite-link {
-      background: #34495e;
+    input[type="text"] {
+      width: 100%;
       padding: 10px;
+      font-size: 15px;
+      border-radius: 8px;
+      border: none;
+      margin-top: 8px;
+      background: #222;
+      color: #fff;
+    }
+    button {
+      padding: 10px 15px;
+      margin-top: 10px;
+      font-size: 14px;
+      background-color: #00f2fe;
+      color: #111;
+      border: none;
       border-radius: 6px;
-      color: #00f2fe;
-      font-weight: bold;
-      word-break: break-word;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #1abc9c;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #444;
+      color: #eee;
+      font-size: 14px;
+    }
+    th {
+      background-color: rgba(255,255,255,0.1);
     }
 
+    /* ✅ Nav giống goicuatoi.html */
     .bottom-nav {
       position: fixed;
       bottom: 0;
@@ -96,21 +126,18 @@
     <h1>👥 Mời bạn bè</h1>
 
     <div class="box">
-      <p>📌 Mã giới thiệu của bạn:</p>
-      <p class="invite-link" id="refCode">Đang tải...</p>
-      <p>📲 Sao chép liên kết mời bạn bè:</p>
-      <p class="invite-link" id="refLink">...</p>
+      <p><strong>Mã giới thiệu của bạn:</strong> <span id="myId">Đang tải...</span></p>
+      <p><strong>Link chia sẻ:</strong></p>
+      <input type="text" id="refLink" readonly>
+      <button onclick="copyLink()">📋 Sao chép link</button>
     </div>
 
     <div class="box">
-      <p>👨‍👦 Bạn đã mời:</p>
-      <div id="refList">Đang tải danh sách...</div>
-    </div>
-
-    <div class="box" id="mgtBox" style="display:none;">
-      <p>🎯 Nhập mã người mời (chỉ 1 lần):</p>
-      <input type="text" id="mgtInput" placeholder="Nhập userId cấp trên..." style="width:100%; padding:8px; border-radius:6px; border:none; margin-bottom:10px;">
-      <button onclick="submitMGT()" style="width:100%; padding:10px; background:#1abc9c; color:white; border:none; border-radius:6px; font-weight:bold;">Xác nhận</button>
+      <p><strong>Danh sách người đã mời:</strong></p>
+      <table id="refTable">
+        <thead><tr><th>Username</th><th>Ngày đăng ký</th></tr></thead>
+        <tbody></tbody>
+      </table>
     </div>
   </div>
 
@@ -134,62 +161,43 @@
       window.location.href = url;
     }
 
-    fetch('/my/account')
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById('refCode').innerText = data.userId || 'Không có mã';
-        const link = window.location.origin + '/register.html?ref=' + (data.userId || '');
-        document.getElementById('refLink').innerText = link;
-
-        if (!data.inviterId) {
-          document.getElementById('mgtBox').style.display = 'block';
-        } else {
-          document.getElementById('mgtBox').innerHTML = `
-            <p>✅ Bạn đã nhập mã người mời: <span style="color:#00f2fe; font-weight:bold;">${data.inviterId}</span></p>
-          `;
-          document.getElementById('mgtBox').style.display = 'block';
-        }
-
-        fetch('/my/referrals')
-          .then(res => res.json())
-          .then(refData => {
-            const refList = document.getElementById('refList');
-            if (!refData.referrals || refData.referrals.length === 0) {
-              refList.innerText = 'Bạn chưa mời ai.';
-            } else {
-              refList.innerHTML = refData.referrals.map(u => `
-                <p>- ${u.username} (${new Date(u.createdAt).toLocaleDateString()})</p>
-              `).join('');
-            }
-          });
-      });
-
-    function submitMGT() {
-      const mgtValue = document.getElementById('mgtInput').value.trim();
-      if (!mgtValue) {
-        Swal.fire('⚠️ Vui lòng nhập mã!');
-        return;
+    async function loadData() {
+      try {
+        const res1 = await fetch('/my/account');
+        const data = await res1.json();
+        document.getElementById('myId').textContent = data.userId;
+        document.getElementById('refLink').value = location.origin + '/reg.html?ref=' + data.userId;
+      } catch {
+        Swal.fire('Lỗi', 'Không lấy được mã giới thiệu', 'error');
       }
 
-      fetch('/my/set-inviter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inviterId: mgtValue })
-      })
-      .then(res => {
-        if (res.ok) {
-          Swal.fire('🎉 Mã người mời đã được ghi nhận!');
-          document.getElementById('mgtBox').innerHTML = `
-            <p>✅ Bạn đã nhập mã người mời: <span style="color:#00f2fe; font-weight:bold;">${mgtValue}</span></p>
-          `;
+      try {
+        const res2 = await fetch('/my/referrals');
+        const data = await res2.json();
+        const tbody = document.querySelector('#refTable tbody');
+        if (data.referrals.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="2">Chưa có ai được mời</td></tr>';
         } else {
-          throw new Error();
+          data.referrals.forEach(u => {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td>${u.username}</td><td>${new Date(u.createdAt).toLocaleDateString()}</td>`;
+            tbody.appendChild(row);
+          });
         }
-      })
-      .catch(() => {
-        Swal.fire('❌ Không thể ghi nhận mã!');
-      });
+      } catch {
+        Swal.fire('Lỗi', 'Không tải được danh sách người mời', 'error');
+      }
     }
+
+    function copyLink() {
+      const input = document.getElementById('refLink');
+      input.select();
+      input.setSelectionRange(0, 99999);
+      document.execCommand('copy');
+      Swal.fire('📋 Đã sao chép', 'Link mời đã được lưu vào clipboard!', 'success');
+    }
+
+    loadData();
   </script>
 </body>
 </html>

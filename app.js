@@ -39,6 +39,7 @@ const userSchema = new mongoose.Schema({
   ipRegister: String,
   ipLogin: String,
   userAgent: String,
+  inviterId: { type: String, default: null },
   locked: { type: Boolean, default: false },
   vipLevel: { type: String, default: 'VIP1' },
   role: { type: String, default: 'user' }
@@ -146,7 +147,11 @@ app.get('/data.html', requireRole(['admin','qtv']));
 app.get('/with.html', requireAdminWith);
 app.get('/histori.html', requireAdHist);
 
-app.get('/reg.html', (req, res, next) => {
+app.get('/reg.html', async (req, res, next) => {
+  if (req.query.ref) {
+    const inviter = await User.findOne({ userId: req.query.ref });
+    if (inviter) req.session.refUserId = req.query.ref;
+  }
   req.session.user ? res.redirect('/menu.html') : next();
 });
 
@@ -189,7 +194,11 @@ app.post('/login', async (req, res) => {
 
 // REGISTER
 app.post('/register', async (req, res) => {
+  if (inviterId === username) {
+  return res.status(400).send('Không thể tự mời chính mình');
+ }
   const { username, email, phone, password } = req.body;
+  const inviterId = req.session.refUserId || null;
   if (await User.findOne({ $or:[{username},{email}] })) {
     return res.status(409).send('Tên hoặc email đã tồn tại');
   }
@@ -199,9 +208,14 @@ app.post('/register', async (req, res) => {
     username, email, phone, password,
     registeredAt: now, lastLogin: now,
     ipRegister: req.ip, ipLogin: req.ip,
-    userAgent: req.headers['user-agent']
+    userAgent: req.headers['user-agent'],
+    inviterId
   });
   await newUser.save();
+  if (inviterId) {
+  await new InviteLog({ userId: newUser.userId, inviterId }).save();
+  }
+  req.session.refUserId = null;
 
   await new Log({
     actor: username,
@@ -622,6 +636,7 @@ app.get('/admin/logs', async (req, res) => {
 });
 
 // STATIC FILES
+
 app.use(express.static(path.join(__dirname, '/')));
 
 const PORT = process.env.PORT || 3000;
